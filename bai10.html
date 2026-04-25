@@ -99,9 +99,9 @@
             document.getElementById('user-role').textContent = role;
 
             if (role === 'owner') {
-                console.log('Hiển thị dashboard cho chủ xe');
+                window.location.href = 'owner-dashboard.html';
             } else {
-                console.log('Hiển thị dashboard cho tài xế');
+                window.location.href = 'driver-dashboard.html';
             }
         }
 
