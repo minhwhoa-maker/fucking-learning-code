@@ -1,13 +1,215 @@
 <!DOCTYPE html>
-<html>
-    <head><meta charset="UTF-8"><title> Owner Dashboard </title>
-
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <title>Owner Dashboard</title>
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: arial, sans-serif; background: #f0f0f0; min-height: 100vh; }
+            .header { background: #333; color: white; padding: 20px; text-align: center; display: flex; justify-content: center; align-items: center; }
+            .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); max-width: 900px; margin: 40px auto; }
+            .stat { margin-bottom: 20px; display: flex; gap: 16px; flex-wrap: wrap; }
+            .stat-card { background: white; padding: 20px; border-radius: 8px; flex: 1; text-align: center; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }
+            .stat-card h3 { font-size: 18px; color: #333; }
+            .stat-card p { color: gray; font-size: 14px; }
+            .doanh-thu { font-size: 28px; color: #4caf50; }
+            .chi-phi { font-size: 28px; color: #f44336; }
+            .loi-nhuan { font-size: 28px; color: #2196f3; }
+            .message { margin-top: 16px; padding: 12px 16px; border-radius: 8px; font-size: 14px; }
+            .message.error { background: #fdecea; color: #b42318; }
+            .message.empty { background: #f5f5f5; color: #555; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+            td { padding: 12px; background: #f2f2f2; }
+            tr:last-child td { border-bottom: none; }
+            tr:hover td { background: #e0e0e0; }
+            button { background: #f44336; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 20px; }
+            @media (max-width: 768px) {
+                .container { margin: 20px; padding: 24px; }
+                .stat-card { min-width: 220px; }
+            }
+        </style>
     </head>
-    <body style="background: #1a1a2e; color: white; text-align: center; padding:50px;">
-        <h1>👑 Owner Dashboard</h1>
-        <p> Hello boss!</p>
-        <a href = "bai10.html" style = "color: blue"> Logout</a>
+    <body>
+        <div class="header">
+            <h2>👑 Owner Dashboard</h2>
+        </div>
+        <div class="container">
+            <div class="stat">
+                <div class="stat-card">
+                    <h3>Doanh thu</h3>
+                    <p class="doanh-thu" id="tong-doanh-thu">...</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Chi phí</h3>
+                    <p class="chi-phi" id="tong-chi-phi">...</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Lợi nhuận</h3>
+                    <p class="loi-nhuan" id="tong-loi-nhuan">...</p>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ngày</th>
+                        <th>Tuyến đường</th>
+                        <th>Doanh thu</th>
+                        <th>Chi phí</th>
+                        <th>Lợi nhuận</th>
+                    </tr>
+                </thead>
+                <tbody id="report-body">
+                    <!-- Dữ liệu sẽ được chèn vào đây -->
+                </tbody>
+            </table>
+            <div id="status-message" hidden></div>
+            <button onclick="logout()">Đăng xuất</button>
+        </div>
+        <script>
+            const { createClient } = supabase
+            const sb = createClient('https://icwmtqfpbefntfxboofr.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM')
+            const statusMessage = document.getElementById('status-message')
 
+            function toNumber(value) {
+                const n = Number(value)
+                return Number.isFinite(n) ? n : 0
+            }
+
+            function setTotals(totalDT = 0, totalCP = 0) {
+                const totalLN = totalDT - totalCP
+                document.getElementById('tong-doanh-thu').textContent = formatCurrency(totalDT)
+                document.getElementById('tong-chi-phi').textContent = formatCurrency(totalCP)
+                document.getElementById('tong-loi-nhuan').textContent = formatCurrency(totalLN)
+            }
+
+            function showStatus(message, type) {
+                statusMessage.textContent = message
+                statusMessage.className = `message ${type}`
+                statusMessage.hidden = false
+            }
+
+            function hideStatus() {
+                statusMessage.hidden = true
+                statusMessage.className = ''
+                statusMessage.textContent = ''
+            }
+
+            function formatCurrency(n) {
+                return toNumber(n).toLocaleString('vi-VN') + ' đ'
+            }
+
+            async function getUserRole(email) {
+                const { data, error } = await sb
+                    .from('users')
+                    .select('role')
+                    .eq('email', email)
+                    .maybeSingle()
+
+                if (error) {
+                    throw new Error(error.message)
+                }
+
+                return data?.role ?? null
+            }
+
+            function renderTrips(trips) {
+                const tbody = document.getElementById('report-body')
+                tbody.innerHTML = ''
+
+                trips.forEach((trip) => {
+                    const row = document.createElement('tr')
+                    const doanhThu = toNumber(trip.doanh_thu)
+                    const chiPhi = toNumber(trip.chi_phi)
+                    const loiNhuan = doanhThu - chiPhi
+
+                    const values = [
+                        trip.ngay ?? '',
+                        trip.tuyen_duong ?? '',
+                        formatCurrency(doanhThu),
+                        formatCurrency(chiPhi),
+                        formatCurrency(loiNhuan)
+                    ]
+
+                    values.forEach((value, index) => {
+                        const cell = document.createElement('td')
+                        cell.textContent = value
+                        if (index === 2) cell.style.color = '#2ecc71'
+                        if (index === 3) cell.style.color = '#e74c3c'
+                        if (index === 4) cell.style.color = '#3498db'
+                        row.appendChild(cell)
+                    })
+
+                    tbody.appendChild(row)
+                })
+            }
+
+            async function loadTrips() {
+                const { data, error } = await sb.from('trips').select('*').order('ngay', { ascending: false })
+                console.log('Data:', data)
+console.log('Error:', error)
+                if (error) {
+                    throw new Error(error.message)
+                }
+
+                const trips = Array.isArray(data) ? data : []
+                const totalDT = trips.reduce((sum, c) => sum + toNumber(c.doanh_thu), 0)
+                const totalCP = trips.reduce((sum, c) => sum + toNumber(c.chi_phi), 0)
+
+                setTotals(totalDT, totalCP)
+
+                if (trips.length === 0) {
+                    document.getElementById('report-body').innerHTML = ''
+                    showStatus('Chưa có dữ liệu chuyến đi.', 'empty')
+                    return
+                }
+
+                hideStatus()
+                renderTrips(trips)
+            }
+
+            async function checkAccess() {
+                const { data: { session }, error } = await sb.auth.getSession()
+                if (error) {
+                    throw new Error(error.message)
+                }
+
+                if (!session?.user?.email) {
+                    window.location.href = 'bai10.html'
+                    return false
+                }
+
+                const role = await getUserRole(session.user.email)
+                if (role !== 'owner') {
+                    window.location.href = 'bai10.html'
+                    return false
+                }
+
+                return true
+            }
+
+            async function initPage() {
+                try {
+                    setTotals(0, 0)
+                    hideStatus()
+                    const allowed = await checkAccess()
+                    if (!allowed) return
+                    await loadTrips()
+                } catch (err) {
+                    console.error('Owner dashboard error:', err)
+                    setTotals(0, 0)
+                    document.getElementById('report-body').innerHTML = ''
+                    showStatus('Không thể tải dữ liệu. Vui lòng thử lại.', 'error')
+                }
+            }
+
+            async function logout() {
+                await sb.auth.signOut()
+                window.location.href = 'bai10.html'
+            }
+
+            initPage()
+        </script>
     </body>
-        
 </html>
