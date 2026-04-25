@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title> Bai 10 - Role base access control</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: blue;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 300px;
+        }
+        button {
+            background: yellow;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {background: red;}
+        #dashboard {display: none;}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="Login-section">
+            <h2>Fleet app</h2>
+            <p>Đăng nhập để tiếp tục</p>
+            <button onclick="LoginGoogle()">Đăng nhập với Google</button>
+        </div>
+        <div id="dashboard">
+            <img id="avatar" src="" width="60" style="border-radius:50%; margin-bottom: 20px;">
+            <h3 id="user-name"></h3>
+            <p id="user-email" style="color:gray; font-size: 14px"></p>
+            <p>Role: <strong id="user-role"></strong></p>
+            <button onclick="logout()" style="background:#ea4335">logout</button>
+        </div>
+    </div>
+    <script>
+        const {createClient} = supabase;
+        const sb = createClient('https://icwmtqfpbefntfxboofr.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM');
+
+        async function LoginGoogle() {
+            const {error} = await sb.auth.signInWithOAuth({
+                provider: "google",
+                options: { redirectTo: 'http://localhost:5500/bai10.html' }
+            });
+            if (error) alert('Đăng nhập thất bại: ' + error.message);
+        }
+
+        async function logout() {
+            await sb.auth.signOut();
+            window.location.href = 'http://127.0.0.1:5500/bai10.html';
+        }
+
+        async function checkUserRole(user) {
+            const {data, error} = await sb
+                .from('users')
+                .select('role')
+                .eq('email', user.email)
+                .maybeSingle();
+
+            if (!data) {
+                const {error: insertError} = await sb.from('users').insert({
+                    id: user.id,
+                    email: user.email,
+                    full_name: user.user_metadata.full_name,
+                    role: 'driver'
+                });
+                if (insertError) console.log('Insert error:', insertError.message);
+                return 'driver';
+            }
+
+            return data.role;
+        }
+
+        async function showDashboard(user, role) {
+            document.getElementById('Login-section').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('user-name').textContent = user.user_metadata.full_name;
+            document.getElementById('user-email').textContent = user.email;
+            document.getElementById('avatar').src = user.user_metadata.avatar_url;
+            document.getElementById('user-role').textContent = role;
+
+            if (role === 'owner') {
+                console.log('Hiển thị dashboard cho chủ xe');
+            } else {
+                console.log('Hiển thị dashboard cho tài xế');
+            }
+        }
+
+        async function checkUser() {
+            const {data: {session}, error} = await sb.auth.getSession();
+            if (error) { alert('Session error: ' + error.message); return; }
+            if (session) {
+                const role = await checkUserRole(session.user);
+                await showDashboard(session.user, role);
+            }
+            sb.auth.onAuthStateChange(async (event, session) => {
+                if (session) {
+                    const role = await checkUserRole(session.user);
+                    await showDashboard(session.user, role);
+                } else {
+                    document.getElementById('Login-section').style.display = 'block';
+                    document.getElementById('dashboard').style.display = 'none';
+                }
+            });
+        }
+
+        checkUser();
+    </script>
+</body>
+</html>
