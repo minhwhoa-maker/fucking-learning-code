@@ -66,7 +66,7 @@
 
         async function logout() {
             await sb.auth.signOut();
-            window.location.href = 'http://127.0.0.1:5500/bai10.html';
+            window.location.href = 'http://localhost:5500/bai10.html';
         }
 
         async function checkUserRole(user) {
@@ -101,7 +101,7 @@
             if (role === 'owner') {
                 window.location.href = 'owner-dashboard.html';
             } else {
-                window.location.href = 'driver-dashboard.html';
+                window.location.href = 'driver-page.html';
             }
         }
 

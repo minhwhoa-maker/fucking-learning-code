@@ -1,10 +1,198 @@
 <!DOCTYPE html>
-<html>
-    <head><meta charset="UTF-8"><title>Driver Page</title></head>
-    <body style="background: #1a1a2e; color: white; text-align: center; padding:50px;">
-        <h1>🚗 Driver Page</h1>
-        <p> Hello driver!</p>
-        <a href = "bai10.html" style = "color: blue"> Logout</a>
-        
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <title> Driver page</title>
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box;}
+            body { font-family: arial, sans-serif; background: blue;}
+
+            .header {
+                background: yellow;
+                color: white;
+                padding: 16px 24px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+
+            }
+            .container {
+                padding: 24px;
+                max-width: 600px;
+                margin: 0 auto;
+
+            }
+            .card h3 { margin-bottom: 16px;
+            color: red;}
+            .form-group { margin-bottom: 16px;}
+            .form-group label { display: block; margin-bottom: 6px;
+            font-weight: bold; font-size: 14px;}
+            .form-group {
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                font-size: 16px;
+            }
+            .btn {
+                background: #2c3e50;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 6px;
+                cursor: pointer;
+                width: 100%;
+
+            }
+            .btn:hover { background: black}
+            .btn-logout { background: white; width: auto;}
+            .msg {padding: 10px; border-radius: 6px;
+            margin-top: 12px; display: none; }
+            .msg.success { background: red; color: blue}
+            .msg.error { background: blue; color: red}
+
+            table { width: 100%; border-collapse: collapse;}
+            th { text-align: left; padding: 10px; background: blue; color: white;}
+            td { padding: 10px; border-bottom: 1px solid red;}
+
+
+        </style>
+
+    </head>
+    <body>
+        <div class ="header">
+            <h2> 🚛 Driver Page </h2>
+            <button class="btn btn-logout" onclick ="logout()">Đăng xuất</button>
+
+        </div>
+        <div class = "container">
+            <div class = "card">
+                <h3> nhap chuyen moi</h3>
+                <div class ="form-group">
+                    <label> ngay </label>
+                    <input type ="date" id="ngay">
+
+                </div>
+                <div class ="form-group">
+                    <label> tuyen duong</label>
+                    <input type ="text" id="tuyen_duong">
+
+                </div>
+                <div class = "form-group">
+                    <label> doanh thu </label>
+                    <input type = "number" id = "doanh_thu">
+
+                </div>
+                <div class = "form-group">
+                    <label> chi phi </label>
+                    <input type = "number" id = "chi_phi">
+
+                </div>
+                <div class = "form-group">
+                    <label> ghi chu </label>
+                    <input type ="text" id = "ghi_chu">
+                </div>
+                <button class = "btn" onclick = "submitTrip()">Nhap chuyen</button>
+                <div class = "msg" id="msg"></div>
+
+
+            </div>
+            <div class ="card">
+                <h3> chuyen cua toi</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th> ngay</th>
+                            <th> tuyen</th>
+                            <th> doanh thu</th>
+
+                        </tr>
+                    </thead>
+                    <tbody id="my-trip"></tbody>
+                </table>
+            </div>
+        </div>
+        <script>
+            const { createClient } = supabase
+            const sb = createClient(
+                'https://icwmtqfpbefntfxboofr.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM'
+            )
+            let currentUser = null
+            function formatMoney(n) {
+            return n.toLocaleString('vi-VN') + 'đ'
+            }
+            function showMsg(text, type) {
+                const el = document.getElementById('msg')
+                el.textContent = text
+                el.className = 'msg ' + type
+                el.style.display = 'block'
+                setTimeout(() => el.style.display = 'none', 3000)
+
+            }
+            async function submitTrip() {
+                const ngay = document.getElementById('ngay').value
+                const tuyen_duong = document.getElementById('tuyen_duong').value
+                const doanh_thu = parseInt(document.getElementById('doanh_thu').value)
+                const chi_phi = parseInt(document.getElementById('chi_phi').value)
+                const ghi_chu = document.getElementById('ghi_chu').value
+
+                if (!ngay || !tuyen_duong || !doanh_thu || !chi_phi) {
+                    showMsg('fuck you, dien day du vao', 'error')
+                    return
+                }
+                const {error} = await sb.from('trips').insert({
+                    ngay,
+                    tuyen_duong,
+                    doanh_thu,
+                    chi_phi,
+                    ghi_chu,
+                    tai_xe_id: currentUser.id
+
+                })
+                if (error) {
+                    showMsg('loi: ' + error.message, 'error')
+
+                } else {
+                    showMsg('nhap chuyen thanh cong', 'success')
+                    loadMyTrips()
+                }
+                }
+                async function loadMyTrips() {
+                    const {data} = await sb
+                    .from('trips')
+                    .select('*')
+                    .eq('tai_xe_id', currentUser.id)
+                    .order('ngay', {ascending: false})
+                const tbody = document.getElementById('my-trip')
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3">Chưa có chuyến nào</td></tr>'
+                    return
+
+                }
+                tbody.innerHTML = data.map(c => `
+                <tr>
+                    <td>${c.ngay}</td>
+                    <td>${c.tuyen_duong}</td>
+                    <td style="color:#2ecc71">${formatMoney(c.doanh_thu)}</td>
+                    </tr>
+                `).join('')
+                }
+                async function logout() {
+                    await sb.auth.signOut()
+                    window.location.href = 'bai10.html'
+                }
+                sb.auth.onAuthStateChange(async (event, session) => {
+             if (session) {
+                currentUser = session.user
+                loadMyTrips()
+             } else {
+                window.location.href = 'bai10.html'
+             }
+             } )
+
+
+        </script>
     </body>
-    </html>
+</html>
