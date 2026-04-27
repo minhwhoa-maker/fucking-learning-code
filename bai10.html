@@ -59,14 +59,14 @@
         async function LoginGoogle() {
             const {error} = await sb.auth.signInWithOAuth({
                 provider: "google",
-                options: { redirectTo: 'http://localhost:5500/bai10.html' }
+                options: { redirectTo: 'https://fucking-learning-code.vercel.app/bai10.html' }
             });
             if (error) alert('Đăng nhập thất bại: ' + error.message);
         }
 
         async function logout() {
             await sb.auth.signOut();
-            window.location.href = 'http://localhost:5500/bai10.html';
+            window.location.href = 'https://fucking-learning-code.vercel.app/bai10.html';
         }
 
         async function checkUserRole(user) {
