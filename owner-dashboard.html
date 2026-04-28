@@ -141,9 +141,15 @@
                     <p class="loi-nhuan" id="tong-loi-nhuan">...</p>
                 </div>
                 <div class="stat-card">
-                    <h3> Tổng lương</h3>
-                    <p class="luong" id = "tong-luong">...</p>
+                    <h3>Tổng lương</h3>
+                    <p class="luong" id="tong-luong">...</p>
                 </div>
+            </div>
+            <div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
+                <label style="font-weight: bold">Tháng</label>
+                <input type="month" id="filter-month" style="padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px;">
+                <button onclick="loadTrips()" style="background: #1565c0; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Lọc</button>
+                <button onclick="clearFilter()" style="background: gray; border: 1px solid #ddd; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Tất cả</button>
             </div>
             <table>
                 <thead>
@@ -244,7 +250,17 @@
             }
 
             async function loadTrips() {
-                const { data, error } = await sb.from('trips').select('*').order('ngay', { ascending: false })
+                let query = sb.from('trips').select('*').order('ngay', { ascending: false })
+                const month = document.getElementById('filter-month').value
+                if (month) {
+                    const start = month + '-01'
+                    const end = new Date(month + '-01')
+                    end.setMonth(end.getMonth() + 1)
+                    const endStr = end.toISOString().split('T')[0]
+                    query = query.gte('ngay', start).lt('ngay', endStr)
+                }
+
+                const { data, error } = await query
                 if (error) {
                     throw new Error(error.message)
                 }
@@ -252,7 +268,7 @@
                 const trips = Array.isArray(data) ? data : []
                 const totalDT = trips.reduce((sum, c) => sum + toNumber(c.doanh_thu), 0)
                 const totalCP = trips.reduce((sum, c) => sum + toNumber(c.chi_phi), 0)
-                const totalluong = trips.reduce((sum, c) => sum + toNumber(c.luong_chuyen),0)
+                const totalluong = trips.reduce((sum, c) => sum + toNumber(c.luong_chuyen), 0)
 
                 setTotals(totalDT, totalCP, totalluong)
 
@@ -266,19 +282,25 @@
                 renderTrips(trips)
             }
 
+            function clearFilter() {
+                document.getElementById('filter-month').value = ''
+                loadTrips()
+            }
+
             async function checkAccess() {
                 const { data: { session }, error } = await sb.auth.getSession()
-                if (error) {
-                    throw new Error(error.message)
-                }
-
-                if (!session?.user?.email) {
+                if (error || !session?.user?.email) {
                     window.location.href = 'bai10.html'
                     return false
                 }
 
-                const role = await getUserRole(session.user.email)
-                if (role !== 'owner') {
+                try {
+                    const role = await getUserRole(session.user.email)
+                    if (role !== 'owner') {
+                        window.location.href = 'bai10.html'
+                        return false
+                    }
+                } catch {
                     window.location.href = 'bai10.html'
                     return false
                 }
