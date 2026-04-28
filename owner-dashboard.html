@@ -203,6 +203,12 @@
                 return toNumber(n).toLocaleString('vi-VN') + ' đ'
             }
 
+            function formatDate(dateStr) {
+                if (!dateStr) return ''
+                const [y, m, d] = dateStr.split('-')
+                return `${d}/${m}/${y.slice(2)}`
+            }
+
             async function getUserRole(email) {
                 const { data, error } = await sb
                     .from('users')
@@ -228,7 +234,7 @@
                     const loiNhuan = doanhThu - chiPhi
 
                     const values = [
-                        trip.ngay ?? '',
+                        formatDate(trip.ngay),
                         trip.tuyen_duong ?? '',
                         formatCurrency(doanhThu),
                         formatCurrency(chiPhi),

@@ -201,7 +201,13 @@
             )
             let currentUser = null
             function formatMoney(n) {
-            return n.toLocaleString('vi-VN') + 'đ'
+                return n.toLocaleString('vi-VN') + 'đ'
+            }
+
+            function formatDate(dateStr) {
+                if (!dateStr) return ''
+                const [y, m, d] = dateStr.split('-')
+                return `${d}/${m}/${y.slice(2)}`
             }
             function showMsg(text, type) {
                 const el = document.getElementById('msg')
@@ -255,7 +261,7 @@
                 }
                 tbody.innerHTML = data.map(c => `
                 <tr>
-                    <td>${c.ngay}</td>
+                    <td>${formatDate(c.ngay)}</td>
                     <td>${c.tuyen_duong}</td>
                     <td style="color:#2ecc71">${formatMoney(c.doanh_thu)}</td>
                     </tr>
