@@ -153,6 +153,7 @@
                         <th>Doanh thu</th>
                         <th>Chi phí</th>
                         <th>Lợi nhuận</th>
+                        <th>Tổng lương</th>
                     </tr>
                 </thead>
                 <tbody id="report-body">
@@ -172,11 +173,12 @@
                 return Number.isFinite(n) ? n : 0
             }
 
-            function setTotals(totalDT = 0, totalCP = 0) {
+            function setTotals(totalDT = 0, totalCP = 0, totalluong = 0) {
                 const totalLN = totalDT - totalCP
                 document.getElementById('tong-doanh-thu').textContent = formatCurrency(totalDT)
                 document.getElementById('tong-chi-phi').textContent = formatCurrency(totalCP)
                 document.getElementById('tong-loi-nhuan').textContent = formatCurrency(totalLN)
+                document.getElementById('tong-luong').textContent = formatCurrency(totalluong)
             }
 
             function showStatus(message, type) {
@@ -224,7 +226,8 @@
                         trip.tuyen_duong ?? '',
                         formatCurrency(doanhThu),
                         formatCurrency(chiPhi),
-                        formatCurrency(loiNhuan)
+                        formatCurrency(loiNhuan),
+                        formatCurrency(toNumber(trip.luong_chuyen))
                     ]
 
                     values.forEach((value, index) => {
@@ -249,12 +252,13 @@
                 const trips = Array.isArray(data) ? data : []
                 const totalDT = trips.reduce((sum, c) => sum + toNumber(c.doanh_thu), 0)
                 const totalCP = trips.reduce((sum, c) => sum + toNumber(c.chi_phi), 0)
+                const totalluong = trips.reduce((sum, c) => sum + toNumber(c.luong_chuyen),0)
 
-                setTotals(totalDT, totalCP)
+                setTotals(totalDT, totalCP, totalluong)
 
                 if (trips.length === 0) {
                     document.getElementById('report-body').innerHTML = ''
-                    showStatus('Chưa có dữ liệu chuyến đi.', 'empty')
+                    showStatus('Chưa có dữ liệu chuyến đi', 'empty')
                     return
                 }
 
