@@ -237,8 +237,6 @@
 
             async function loadTrips() {
                 const { data, error } = await sb.from('trips').select('*').order('ngay', { ascending: false })
-                console.log('Data:', data)
-console.log('Error:', error)
                 if (error) {
                     throw new Error(error.message)
                 }
@@ -286,6 +284,12 @@ console.log('Error:', error)
                     const allowed = await checkAccess()
                     if (!allowed) return
                     await loadTrips()
+                    sb.channel('trips-changes')
+                        .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, payload => {
+                            console.log('Change detected:', payload)
+                            loadTrips()
+                        })
+                        .subscribe()
                 } catch (err) {
                     console.error('Owner dashboard error:', err)
                     setTotals(0, 0)
