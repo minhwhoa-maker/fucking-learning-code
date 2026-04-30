@@ -160,6 +160,9 @@
                         <th>Chi phí</th>
                         <th>Lợi nhuận</th>
                         <th>Lương</th>
+                        <th> Tạm ứng</th>
+                        <th> Hoàn ứng</th>
+                        <th> Còn lại</th>
                     </tr>
                 </thead>
                 <tbody id="report-body">
@@ -234,6 +237,9 @@
                     const doanhThu = toNumber(trip.doanh_thu)
                     const chiPhi = toNumber(trip.chi_phi)
                     const loiNhuan = doanhThu - chiPhi
+                    const tamUng = toNumber(trip.tam_ung)
+                    const hoanUng = toNumber(trip.hoan_ung)
+                    const conLai = tamUng - hoanUng
 
                     const values = [
                         formatDate(trip.ngay),
@@ -241,7 +247,10 @@
                         formatCurrency(doanhThu),
                         formatCurrency(chiPhi),
                         formatCurrency(loiNhuan),
-                        formatCurrency(toNumber(trip.luong_chuyen))
+                        formatCurrency(toNumber(trip.luong_chuyen)),
+                        formatCurrency(tamUng),
+                        formatCurrency(hoanUng),
+                        formatCurrency(conLai)
                     ]
 
                     values.forEach((value, index) => {
@@ -250,6 +259,9 @@
                         if (index === 2) cell.style.color = '#2ecc71'
                         if (index === 3) cell.style.color = '#e74c3c'
                         if (index === 4) cell.style.color = '#3498db'
+                        if (index === 6) cell.style.color = '#e67e22'
+                        if (index === 7) cell.style.color = '#27ae60'
+                        if (index === 8) cell.style.color = conLai > 0 ? '#e74c3c' : '#27ae60'
                         row.appendChild(cell)
                     })
 
