@@ -78,6 +78,15 @@
     </div>
     <div class="container">
         <div class="card">
+            <h3>Thêm tài xế mới</h3>
+            <div class="form-row">
+                <input type="text" id="new-name" placeholder="Họ và tên">
+                <input type="text" id="new-sdt" placeholder="Số điện thoại">
+                <button class="btn" onclick="addDriver()">Thêm</button>
+            </div>
+            <p id="add-msg" style="display:none; color:#27ae60; font-weight:bold"></p>
+        </div>
+        <div class="card">
             <h3>Danh sách tài xế</h3>
             <div class="filter-bar">
                 <label style="font-weight: bold">Tháng</label>
@@ -88,15 +97,17 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Họ và tên</th>
-                        <th>SĐT</th>
-                        <th>Số chuyến</th>
-                        <th>Tổng lương</th>
-                        <th>Xóa</th>
+                        <th> Họ và tên</th>
+                        <th> SĐT</th>
+                        <th> Số chuyến</th>
+                        <th> Tổng lương</th>
+                        <th> Tạm ứng</th>
+                        <th> Thực nhận</th>
+                        <th> Xóa</th>
                     </tr>
                 </thead>
                 <tbody id="driver-list">
-                    <tr><td colspan="5">Đang tải ...</td></tr>
+                    <tr><td colspan="7">Đang tải ...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -116,7 +127,7 @@
             const full_name = document.getElementById('new-name').value.trim()
             const sdt = document.getElementById('new-sdt').value.trim()
             if (!full_name || !sdt) {
-                alert('đủ má điền đủ thông tin')
+                alert('Vui lòng điền đủ thông tin')
                 return
             }
             const { error } = await sb.from('users').insert({
@@ -154,7 +165,7 @@
 
             if (!drivers || drivers.length === 0) {
                 document.getElementById('driver-list').innerHTML =
-                    '<tr><td colspan="5">Chưa có tài xế nào</td></tr>'
+                    '<tr><td colspan="7">Chưa có tài xế nào</td></tr>'
                 return
             }
 
@@ -167,21 +178,52 @@
             }
 
             const { data: trips } = await tripsQuery
+            let advencesQuery = sb.from('tam_ung_thang').select('*')
+            if (month) advencesQuery = advencesQuery.eq('thang', month)
+            const { data: advances } = await advencesQuery
             const tbody = document.getElementById('driver-list')
             tbody.innerHTML = drivers.map(d => {
-                const myTrips = (trips || []).filter(t => t.tai_xe_id === d.id)
-                const totalLuong = myTrips.reduce((sum, t) => sum + (t.luong_chuyen || 0), 0)
-                return `
-                    <tr>
-                        <td>${d.full_name || '-'}</td>
-                        <td>${d.sdt || '-'}</td>
-                        <td>${myTrips.length} chuyến</td>
-                        <td style="color:#e67e22">${formatMoney(totalLuong)}</td>
-                        <td><button class="btn btn-red" onclick="deleteDriver('${d.id}', '${d.full_name}')">Xóa</button></td>
-                    </tr>
-                `
-            }).join('')
+    const myTrips = (trips || []).filter(t => t.tai_xe_id === d.id)
+    const totalLuong = myTrips.reduce((sum, t) => sum + (t.luong_chuyen || 0), 0)
+    const myAdvances = (advances || []).filter(a => a.tai_xe_id === d.id)
+    const totalAdvance = myAdvances.reduce((sum, a) => sum + (a.so_tien || 0), 0)
+    const thucNhan = totalLuong - totalAdvance
+    const safeName = (d.full_name || '').replace(/'/g, "\\'")
+
+    return `
+        <tr>
+            <td>${d.full_name || '-'}</td>
+            <td>${d.sdt || '-'}</td>
+            <td>${myTrips.length} chuyến</td>
+            <td style="color:#e67e22">${formatMoney(totalLuong)}</td>
+            <td style="color:#e74c3c">${formatMoney(totalAdvance)}</td>
+            <td style="color:${thucNhan >= 0 ? '#27ae60' : '#e74c3c'}; font-weight:bold">${formatMoney(thucNhan)}</td>
+            <td style="display:flex; gap:6px">
+                <button class="btn" style="background:#27ae60; padding:6px 12px" onclick="addAdvance('${d.id}', '${safeName}')">+ Tạm ứng</button>
+                <button class="btn btn-red" style="padding:6px 12px" onclick="deleteDriver('${d.id}', '${safeName}')">Xóa</button>
+            </td>
+        </tr>
+    `
+}).join('')
         }
+        async function addAdvance(driverId, driverName) {
+    const month = document.getElementById('filter-month').value
+    if (!month) {
+        alert('Vui lòng chọn tháng trước!')
+        return
+    }
+    const amount = prompt(`Nhập số tiền tạm ứng cho ${driverName} (tháng ${month}):`)
+    if (!amount) return
+    
+    const { error } = await sb.from('tam_ung_thang').insert({
+        tai_xe_id: driverId,
+        thang: month,
+        so_tien: parseInt(amount) || 0
+    })
+    
+    if (error) alert('Lỗi: ' + error.message)
+    else loadDrivers()
+}
 
         function clearFilter() {
             document.getElementById('filter-month').value = ''
@@ -196,16 +238,18 @@
         loadDrivers()
         function exportExcel() {
     const month = document.getElementById('filter-month').value || 'Tất cả'
-    const rows = [['Họ tên', 'SĐT', 'Số chuyến', 'Tổng lương']]
-    
+    const rows = [['Họ tên', 'SĐT', 'Số chuyến', 'Tổng lương', 'Tạm ứng', 'Thực nhận']]
+
     document.querySelectorAll('#driver-list tr').forEach(tr => {
         const cells = tr.querySelectorAll('td')
-        if (cells.length >= 4) {
+        if (cells.length >= 6) {
             rows.push([
                 cells[0].textContent,
                 cells[1].textContent,
                 cells[2].textContent,
-                cells[3].textContent
+                cells[3].textContent,
+                cells[4].textContent,
+                cells[5].textContent
             ])
         }
     })
