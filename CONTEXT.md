@@ -10,7 +10,7 @@
 - owner-dashboard.html: Owner dashboard
 - driver-page.html: Driver trip input
 - drivers.html: Driver management
-- advances.html: (planned)
+- advances.html: advence driver management
 
 ## Database tables
 - users (id, email, full_name, sdt, role)
@@ -18,4 +18,4 @@
 - tam_ung_thang (id, tai_xe_id, thang, so_tien, ghi_chu)
 
 ## Current status
-- Bài 20: Tạm ứng/hoàn ứng đang build
+Vihicles status 
