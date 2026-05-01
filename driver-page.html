@@ -129,6 +129,48 @@
 
             tr:last-child td { border-bottom: none; }
 
+            .upload-area {
+                border: 2px dashed #c0c0c0;
+                border-radius: 8px;
+                padding: 20px;
+                text-align: center;
+                cursor: pointer;
+                transition: border-color 0.2s, background 0.2s;
+                background: #fafafa;
+            }
+
+            .upload-area:hover { border-color: #1a1a2e; background: #f0f0f5; }
+
+            .upload-area input[type="file"] { display: none; }
+
+            .upload-icon { font-size: 32px; margin-bottom: 8px; }
+
+            .upload-text { font-size: 14px; color: #777; }
+
+            .upload-text span { color: #1565c0; font-weight: 600; }
+
+            #receipt-preview {
+                margin-top: 12px;
+                display: none;
+            }
+
+            #receipt-preview img {
+                width: 100%;
+                max-height: 200px;
+                object-fit: cover;
+                border-radius: 8px;
+                border: 1.5px solid #e0e0e0;
+            }
+
+            .preview-remove {
+                display: block;
+                margin-top: 6px;
+                font-size: 13px;
+                color: #c62828;
+                cursor: pointer;
+                text-align: right;
+            }
+
             @media (min-width: 480px) {
                 .container { padding: 24px; }
                 .card { padding: 24px; }
@@ -168,6 +210,18 @@
                 <div class = "form-group">
                     <label> Ghi Chú </label>
                     <input type ="text" id = "ghi_chu">
+                </div>
+                <div class="form-group">
+                    <label>Ảnh Hóa Đơn</label>
+                    <div class="upload-area" onclick="document.getElementById('receipt-file').click()">
+                        <input type="file" id="receipt-file" accept="image/*" capture="environment" onchange="previewReceipt(this)">
+                        <div class="upload-icon">📷</div>
+                        <div class="upload-text">Chụp hoặc <span>chọn ảnh</span> hóa đơn</div>
+                    </div>
+                    <div id="receipt-preview">
+                        <img id="receipt-img" src="" alt="Ảnh hóa đơn">
+                        <span class="preview-remove" onclick="removeReceipt()">✕ Xóa ảnh</span>
+                    </div>
                 </div>
                 <div class = "form-group">
                     <label> Lương (đ) </label>
@@ -217,6 +271,31 @@
                 const [y, m, d] = dateStr.split('-')
                 return `${d}/${m}/${y.slice(2)}`
             }
+            function previewReceipt(input) {
+                if (!input.files || !input.files[0]) return
+                const reader = new FileReader()
+                reader.onload = e => {
+                    document.getElementById('receipt-img').src = e.target.result
+                    document.getElementById('receipt-preview').style.display = 'block'
+                }
+                reader.readAsDataURL(input.files[0])
+            }
+
+            function removeReceipt() {
+                document.getElementById('receipt-file').value = ''
+                document.getElementById('receipt-img').src = ''
+                document.getElementById('receipt-preview').style.display = 'none'
+            }
+
+            async function uploadReceipt(file, userId) {
+                const ext = file.name.split('.').pop() || 'jpg'
+                const path = `${userId}/${Date.now()}.${ext}`
+                const { error } = await sb.storage.from('receipts').upload(path, file, { upsert: false })
+                if (error) throw error
+                const { data } = sb.storage.from('receipts').getPublicUrl(path)
+                return data.publicUrl
+            }
+
             function showMsg(text, type) {
                 const el = document.getElementById('msg')
                 el.textContent = text
@@ -238,6 +317,17 @@
                     showMsg('Bạn chưa nhập đủ thông tin', 'error')
                     return
                 }
+                let anh_hoa_don = null
+                const fileInput = document.getElementById('receipt-file')
+                if (fileInput.files && fileInput.files[0]) {
+                    try {
+                        showMsg('Đang upload ảnh...', 'success')
+                        anh_hoa_don = await uploadReceipt(fileInput.files[0], currentUser.id)
+                    } catch (e) {
+                        showMsg('Lỗi upload ảnh: ' + e.message, 'error')
+                        return
+                    }
+                }
                 const {error} = await sb.from('trips').insert({
                     ngay,
                     tuyen_duong,
@@ -248,12 +338,13 @@
                     luong_chuyen: luong_chuyen,
                     tam_ung: tam_ung,
                     hoan_ung: hoan_ung,
+                    anh_hoa_don,
                 })
                 if (error) {
                     showMsg('loi: ' + error.message, 'error')
-
                 } else {
                     showMsg('Nhập chuyến thành công', 'success')
+                    removeReceipt()
                     loadMyTrips()
                 }
                 }
