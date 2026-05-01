@@ -8,8 +8,8 @@
 
 ## Files
 - bai10.html: Login page (Google OAuth + role redirect)
-- owner-dashboard.html: Owner dashboard (trips, stats, filter month, realtime)
-- driver-page.html: Driver trip input (nhập chuyến, tạm ứng, hoàn ứng, upload ảnh hóa đơn)
+- owner-dashboard.html: Owner dashboard (trips, stats, filter month, realtime, thumbnail ảnh hóa đơn)
+- driver-page.html: Driver trip input (nhập chuyến, tạm ứng, hoàn ứng, upload ảnh hóa đơn — 2 button: chụp ảnh + chọn thư viện)
 - drivers.html: Driver management (danh sách, lương, tạm ứng tháng, export Excel/PDF)
 - vehicles.html: Vehicle management (danh sách xe, trạng thái, bảo dưỡng inline)
 - CONTEXT.md: This file
@@ -25,7 +25,9 @@
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM
 
 ## Current status
-- Bài 23: Upload ảnh hóa đơn — hoàn thành (camera/file input, upload Supabase Storage bucket 'receipts', lưu URL vào anh_hoa_don)
+- Bài 24: Cải tiến UX ảnh hóa đơn — hoàn thành
+  - driver-page: tách thành 2 button riêng (chụp ảnh camera, chọn từ thư viện)
+  - owner-dashboard: thêm cột "Ảnh HĐ" — thumbnail 50×50px clickable, mở full ảnh tab mới
 
 ## Progress
 - Bài 1-7: HTML/CSS/JS cơ bản
@@ -45,6 +47,7 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZ
 - Bài 21: Quản lý xe
 - Bài 22: Bảo dưỡng xe ✓
 - Bài 23: Upload ảnh hóa đơn ✓
+- Bài 24: Cải tiến UX ảnh hóa đơn (2 button driver, thumbnail owner) ✓
 
 ## Supabase Storage
 - Bucket: receipts (cần bật Public access để getPublicUrl hoạt động)

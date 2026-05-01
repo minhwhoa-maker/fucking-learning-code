@@ -163,6 +163,7 @@
                         <th> Tạm ứng</th>
                         <th> Hoàn ứng</th>
                         <th> Còn lại</th>
+                        <th>Ảnh HĐ</th>
                     </tr>
                 </thead>
                 <tbody id="report-body">
@@ -264,6 +265,28 @@
                         if (index === 8) cell.style.color = conLai > 0 ? '#e74c3c' : '#27ae60'
                         row.appendChild(cell)
                     })
+
+                    const imgCell = document.createElement('td')
+                    if (trip.anh_hoa_don) {
+                        const link = document.createElement('a')
+                        link.href = trip.anh_hoa_don
+                        link.target = '_blank'
+                        const img = document.createElement('img')
+                        img.src = trip.anh_hoa_don
+                        img.width = 50
+                        img.height = 50
+                        img.style.objectFit = 'cover'
+                        img.style.borderRadius = '4px'
+                        img.style.border = '1px solid #e0e0e0'
+                        img.style.cursor = 'pointer'
+                        link.appendChild(img)
+                        imgCell.appendChild(link)
+                    } else {
+                        imgCell.textContent = '-'
+                        imgCell.style.color = '#aaa'
+                        imgCell.style.textAlign = 'center'
+                    }
+                    row.appendChild(imgCell)
 
                     tbody.appendChild(row)
                 })
