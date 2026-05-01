@@ -11,7 +11,7 @@
 - owner-dashboard.html: Owner dashboard (trips, stats, filter month, realtime)
 - driver-page.html: Driver trip input (nhập chuyến, tạm ứng, hoàn ứng)
 - drivers.html: Driver management (danh sách, lương, tạm ứng tháng, export Excel/PDF)
-- vehicles.html: Vehicle management (danh sách xe, trạng thái)
+- vehicles.html: Vehicle management (danh sách xe, trạng thái, bảo dưỡng inline)
 - CONTEXT.md: This file
 
 ## Database tables
@@ -19,14 +19,13 @@
 - trips (id, ngay, tuyen_duong, doanh_thu, chi_phi, luong_chuyen, tam_ung, hoan_ung, tai_xe_id, ghi_chu)
 - tam_ung_thang (id, tai_xe_id, thang, so_tien, ghi_chu)
 - xe (id, bien_so, loai_xe, nam_sx, trang_thai, tai_xe_id)
-- bao_duong (id, xe_id, ngay, loai, mo_ta, chi_phi) — đang build
+- bao_duong (id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)
 
 ## Supabase anon key
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM
 
 ## Current status
-- Bài 22: Bảo dưỡng/hỏng hóc xe — đang build
-- Table bao_duong cần tạo trong Supabase
+- Bài 22: Bảo dưỡng xe — hoàn thành (form + lịch sử inline trong vehicles.html)
 
 ## Progress
 - Bài 1-7: HTML/CSS/JS cơ bản
@@ -44,9 +43,10 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZ
 - Bài 19: Export Excel + PDF
 - Bài 20: Tạm ứng/hoàn ứng
 - Bài 21: Quản lý xe
-- Bài 22: Bảo dưỡng xe (đang làm)
+- Bài 22: Bảo dưỡng xe ✓
 
 ## Notes
 - RLS disabled trên tất cả tables (cần fix sau)
 - Anon key đừng share public
 - Mỗi lần Claude Code mới → paste file này vào đầu
+- Định dạng ngày hiển thị: dd/mm/yy (ví dụ: 01/05/26)

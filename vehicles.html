@@ -65,6 +65,19 @@
         .status-hoat_dong { background: #d4edda; color: #155724; }
         .status-bao_duong { background: #fff3cd; color: #856404; }
         .status-tam_nghi { background: #f8d7da; color: #721c24; }
+
+        .btn-orange { background: #f39c12; }
+        .btn-orange:hover { background: #e67e22; }
+        .btn-green { background: #27ae60; }
+        .btn-green:hover { background: #2ecc71; }
+
+        .maintenance-panel {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .maintenance-panel h4 { color: #1565c0; margin-bottom: 12px; }
     </style>
 </head>
 <body>
@@ -186,6 +199,7 @@
 
             tbody.innerHTML = data.map(v => {
                 const driver = drivers.find(d => d.id === v.tai_xe_id)
+                const today = new Date().toISOString().split('T')[0]
                 return `
                     <tr>
                         <td><strong>${v.bien_so}</strong></td>
@@ -193,13 +207,111 @@
                         <td>${v.nam_sx || '-'}</td>
                         <td>${driver ? driver.full_name : '-'}</td>
                         <td><span class="status status-${v.trang_thai}">${statusLabels[v.trang_thai] || v.trang_thai}</span></td>
-                        <td style="display:flex; gap:6px">
+                        <td style="display:flex; gap:6px; flex-wrap:wrap">
                             <button class="btn" style="padding:6px 12px" onclick="changeStatus('${v.id}', '${v.trang_thai}')">Đổi TT</button>
+                            <button class="btn btn-orange" style="padding:6px 12px" onclick="toggleMaintenance('${v.id}')">🔧 Bảo dưỡng</button>
                             <button class="btn btn-red" style="padding:6px 12px" onclick="deleteVehicle('${v.id}', '${v.bien_so}')">Xóa</button>
+                        </td>
+                    </tr>
+                    <tr id="maint-row-${v.id}" style="display:none">
+                        <td colspan="6" style="padding:0 12px 12px">
+                            <div class="maintenance-panel">
+                                <h4>🔧 Bảo dưỡng xe ${v.bien_so}</h4>
+                                <div class="form-row">
+                                    <input type="date" id="maint-ngay-${v.id}" value="${today}">
+                                    <select id="maint-loai-${v.id}">
+                                        <option value="hong_hoc">Hỏng hóc</option>
+                                        <option value="linh_kien">Linh kiện</option>
+                                        <option value="lop_xe">Lốp xe</option>
+                                        <option value="dinh_ky">Định kỳ</option>
+                                    </select>
+                                    <input type="text" id="maint-mota-${v.id}" placeholder="Mô tả">
+                                    <input type="number" id="maint-chiphi-${v.id}" placeholder="Chi phí (VNĐ)">
+                                    <button class="btn btn-green" onclick="addMaintenance('${v.id}')">+ Thêm</button>
+                                </div>
+                                <div id="maint-history-${v.id}"></div>
+                            </div>
                         </td>
                     </tr>
                 `
             }).join('')
+        }
+
+        function fmtDate(iso) {
+            const [y, m, d] = iso.split('-')
+            return d + '/' + m + '/' + y.slice(2)
+        }
+
+        function toggleMaintenance(xeId) {
+            const row = document.getElementById('maint-row-' + xeId)
+            if (row.style.display === 'none') {
+                row.style.display = ''
+                loadMaintenance(xeId)
+            } else {
+                row.style.display = 'none'
+            }
+        }
+
+        async function loadMaintenance(xeId) {
+            const container = document.getElementById('maint-history-' + xeId)
+            container.innerHTML = '<p style="color:#999; margin-top:8px">Đang tải...</p>'
+
+            const { data, error } = await sb.from('bao_duong').select('*').eq('xe_id', xeId).order('ngay', { ascending: false })
+
+            const loaiLabels = { hong_hoc: 'Hỏng hóc', linh_kien: 'Linh kiện', lop_xe: 'Lốp xe', dinh_ky: 'Định kỳ' }
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p style="color:#999; margin-top:8px">Chưa có lịch sử bảo dưỡng</p>'
+                return
+            }
+
+            container.innerHTML = `
+                <table style="margin-top:12px">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Loại</th>
+                            <th>Mô tả</th>
+                            <th>Chi phí</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(m => `
+                            <tr>
+                                <td>${fmtDate(m.ngay)}</td>
+                                <td>${loaiLabels[m.loai] || m.loai}</td>
+                                <td>${m.mo_ta || '-'}</td>
+                                <td>${m.chi_phi ? Number(m.chi_phi).toLocaleString('vi-VN') + ' ₫' : '-'}</td>
+                                <td><button class="btn btn-red" style="padding:4px 8px; font-size:12px" onclick="deleteMaintenance('${m.id}', '${xeId}')">Xóa</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `
+        }
+
+        async function addMaintenance(xeId) {
+            const ngay = document.getElementById('maint-ngay-' + xeId).value
+            const loai = document.getElementById('maint-loai-' + xeId).value
+            const mo_ta = document.getElementById('maint-mota-' + xeId).value.trim()
+            const chi_phi = parseFloat(document.getElementById('maint-chiphi-' + xeId).value) || null
+
+            if (!ngay) { alert('Vui lòng chọn ngày!'); return }
+
+            const { error } = await sb.from('bao_duong').insert({ xe_id: xeId, ngay, loai, mo_ta, chi_phi })
+            if (error) { alert('Lỗi: ' + error.message); return }
+
+            document.getElementById('maint-mota-' + xeId).value = ''
+            document.getElementById('maint-chiphi-' + xeId).value = ''
+            loadMaintenance(xeId)
+        }
+
+        async function deleteMaintenance(id, xeId) {
+            if (!confirm('Xóa bản ghi bảo dưỡng này?')) return
+            const { error } = await sb.from('bao_duong').delete().eq('id', id)
+            if (error) alert('Lỗi: ' + error.message)
+            else loadMaintenance(xeId)
         }
 
         async function logout() {
