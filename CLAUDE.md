@@ -9,14 +9,14 @@
 ## Files
 - bai10.html: Login page (Google OAuth + role redirect)
 - owner-dashboard.html: Owner dashboard (trips, stats, filter month, realtime)
-- driver-page.html: Driver trip input (nhập chuyến, tạm ứng, hoàn ứng)
+- driver-page.html: Driver trip input (nhập chuyến, tạm ứng, hoàn ứng, upload ảnh hóa đơn)
 - drivers.html: Driver management (danh sách, lương, tạm ứng tháng, export Excel/PDF)
 - vehicles.html: Vehicle management (danh sách xe, trạng thái, bảo dưỡng inline)
 - CONTEXT.md: This file
 
 ## Database tables
 - users (id, email, full_name, sdt, role)
-- trips (id, ngay, tuyen_duong, doanh_thu, chi_phi, luong_chuyen, tam_ung, hoan_ung, tai_xe_id, ghi_chu)
+- trips (id, ngay, tuyen_duong, doanh_thu, chi_phi, luong_chuyen, tam_ung, hoan_ung, tai_xe_id, ghi_chu, anh_hoa_don)
 - tam_ung_thang (id, tai_xe_id, thang, so_tien, ghi_chu)
 - xe (id, bien_so, loai_xe, nam_sx, trang_thai, tai_xe_id)
 - bao_duong (id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)
@@ -25,7 +25,7 @@
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM
 
 ## Current status
-- Bài 22: Bảo dưỡng xe — hoàn thành (form + lịch sử inline trong vehicles.html)
+- Bài 23: Upload ảnh hóa đơn — hoàn thành (camera/file input, upload Supabase Storage bucket 'receipts', lưu URL vào anh_hoa_don)
 
 ## Progress
 - Bài 1-7: HTML/CSS/JS cơ bản
@@ -44,6 +44,11 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZ
 - Bài 20: Tạm ứng/hoàn ứng
 - Bài 21: Quản lý xe
 - Bài 22: Bảo dưỡng xe ✓
+- Bài 23: Upload ảnh hóa đơn ✓
+
+## Supabase Storage
+- Bucket: receipts (cần bật Public access để getPublicUrl hoạt động)
+- Path format: {userId}/{timestamp}.{ext}
 
 ## Notes
 - RLS disabled trên tất cả tables (cần fix sau)
