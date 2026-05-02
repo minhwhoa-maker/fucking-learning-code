@@ -16,10 +16,13 @@
 - CONTEXT.md: This file
 
 ## CSS Design System (style.css)
-- Tất cả pages dùng chung `/style.css` — không có `<style>` block riêng
+- Tất cả pages dùng chung `style.css` (relative path) — không có `<style>` block riêng
 - CSS variables: `--primary #1565c0`, `--danger #e74c3c`, `--success #27ae60`, `--warning #e67e22`, `--bg #f0f2f5`
-- Classes: `.btn`, `.btn-danger`, `.btn-success`, `.btn-warning`, `.btn-logout`, `.btn-full`, `.btn-sm`
+- Classes: `.btn`, `.btn-danger`, `.btn-success`, `.btn-warning`, `.btn-logout`, `.btn-full`, `.btn-sm`, `.btn-google`
 - Stat values: `.stat-value.green/red/blue/orange` (thay cho `.doanh-thu/.chi-phi/.loi-nhuan/.luong` cũ)
+- Table wrapper: `.table-scroll` (mobile scroll), `.table-scroll.wide` (cho bảng nhiều cột)
+- Messages: `.message.success/.error/.empty`
+- Tất cả link assets dùng relative path: `manifest.json`, `style.css`, `sw.js`
 
 ## Database tables
 - users (id, email, full_name, sdt, role)
@@ -32,23 +35,18 @@
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM
 
 ## Current status
-- Bài 26: Tách shared style.css — hoàn thành
-  - Xóa toàn bộ `<style>` block khỏi 5 file HTML
-  - Thêm `<meta name="viewport">` + `<link rel="stylesheet" href="/style.css">` vào tất cả
-  - Đổi class: `btn-red→btn-danger`, `btn-orange→btn-warning`, `btn-green→btn-success`
-  - Đổi stat classes: `doanh-thu/chi-phi/loi-nhuan/luong → stat-value green/red/blue/orange`
-  - Còn lỗi chưa fix: xem danh sách lỗi bên dưới
-
-## Known issues (style.css)
-- bai10.html: body cần `display:flex; justify-content:center; align-items:center` để center login card
-- bai10.html: `.card` cần override `width:320px; text-align:center; padding:40px 36px` cho login card
-- bai10.html: `.btn-google` và `#dashboard {display:none}` chưa có trong style.css
-- owner-dashboard.html: `.container` cần `background:white; border-radius:12px; box-shadow; overflow-x:auto` (hiện là plain wrapper)
-- owner-dashboard.html: `.message/.message.empty` chưa có trong style.css (JS dùng class này)
-- owner-dashboard.html: `table {min-width:460px}` bị mất → scroll mobile có thể lỗi
-- driver-page.html: `.upload-input {display:none}` bị mất → file inputs hiển thị ra ngoài
-- driver-page.html: nút submit cần thêm class `btn-full` để full-width
-- driver.html + vehicles.html: `th` header đổi từ xanh đậm sang nhạt theo style.css
+- Bài 27: Hardening — security + accessibility + responsive — hoàn thành
+  - **JS refactor**: thay `innerHTML` template literals bằng `createElement`/`textContent` (chống XSS)
+    - vehicles.html: helper `addCell`, `createButton`, `setVehicleMessage`
+    - driver.html: helper `addCell`, `setDriverMessage`
+    - owner-dashboard.html: `tbody.textContent = ''` thay innerHTML, thêm `tripsChannel` để cleanup
+  - **Validation chặt hơn**: `Number()` + `Number.isFinite()` thay `parseInt`, sanitize file extension
+  - **Error handling**: thêm try/catch + alert/toast khi lỗi network ở mọi async function
+  - **Auth check**: driver-page kiểm tra `currentProfileId` trước khi insert trip
+  - **Responsive**: thêm `<div class="table-scroll wide">` wrapper cho mọi bảng
+  - **Path**: tất cả assets dùng relative path (`manifest.json`, `style.css`, `sw.js`)
+  - **driver.html**: thêm field `email` khi tạo tài xế mới (cột Email trong bảng)
+  - **style.css**: bổ sung `.btn-google`, `.message.empty`, `.table-scroll`, fix các known issues của Bài 26
 
 ## Progress
 - Bài 1-7: HTML/CSS/JS cơ bản
@@ -70,7 +68,8 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZ
 - Bài 23: Upload ảnh hóa đơn ✓
 - Bài 24: Cải tiến UX ảnh hóa đơn (2 button driver, thumbnail owner) ✓
 - Bài 25: Đồng bộ style toàn app (font, màu, border-radius, shadow) ✓
-- Bài 26: Tách shared style.css, xóa style blocks, đổi class names ✓ (còn known issues)
+- Bài 26: Tách shared style.css, xóa style blocks, đổi class names ✓
+- Bài 27: Security hardening (chống XSS), validation, table responsive, fix style.css ✓
 
 ## Supabase Storage
 - Bucket: receipts (cần bật Public access để getPublicUrl hoạt động)
