@@ -1,7 +1,18 @@
-const CACHE_NAME = 'van-tai-v2';
+const CACHE_NAME = 'van-tai-v3';
+const STATIC_ASSETS = [
+    './bai10.html',
+    './style.css',
+    './manifest.json',
+    './icons/icon-192.png',
+    './icons/icon-512.png'
+];
 
 self.addEventListener('install', e => {
-    self.skipWaiting();
+    e.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll(STATIC_ASSETS))
+            .then(() => self.skipWaiting())
+    );
 });
 
 self.addEventListener('activate', e => {
@@ -14,13 +25,28 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
     if (e.request.method !== 'GET') return;
-    e.respondWith(
-        caches.match(e.request).then(cached => {
-            return cached || fetch(e.request).then(response => {
-                const clone = response.clone();
-                caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+
+    const url = new URL(e.request.url);
+    if (url.origin !== self.location.origin) return;
+
+    e.respondWith((async () => {
+        const cache = await caches.open(CACHE_NAME);
+
+        if (e.request.mode === 'navigate') {
+            try {
+                const response = await fetch(e.request);
+                if (response.ok) await cache.put(e.request, response.clone());
                 return response;
-            });
-        })
-    );
+            } catch {
+                return (await cache.match(e.request)) || cache.match('./bai10.html');
+            }
+        }
+
+        const cached = await cache.match(e.request);
+        if (cached) return cached;
+
+        const response = await fetch(e.request);
+        if (response.ok) await cache.put(e.request, response.clone());
+        return response;
+    })());
 });

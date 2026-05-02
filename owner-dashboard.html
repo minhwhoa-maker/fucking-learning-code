@@ -5,8 +5,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Owner Dashboard</title>
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-        <link rel="manifest" href="/manifest.json">
-        <link rel="stylesheet" href="/style.css">
+        <link rel="manifest" href="manifest.json">
+        <link rel="stylesheet" href="style.css">
     </head>
     <body>
         <div class="header">
@@ -37,25 +37,27 @@
                 <button onclick="loadTrips()" style="background: #1565c0; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Lọc</button>
                 <button onclick="clearFilter()" style="background: gray; border: 1px solid #ddd; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Tất cả</button>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Ngày</th>
-                        <th>Tuyến đường</th>
-                        <th>Doanh thu</th>
-                        <th>Chi phí</th>
-                        <th>Lợi nhuận</th>
-                        <th>Lương</th>
-                        <th> Tạm ứng</th>
-                        <th> Hoàn ứng</th>
-                        <th> Còn lại</th>
-                        <th>Ảnh HĐ</th>
-                    </tr>
-                </thead>
-                <tbody id="report-body">
-                    <!-- Dữ liệu sẽ được chèn vào đây -->
-                </tbody>
-            </table>
+            <div class="table-scroll wide">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Tuyến đường</th>
+                            <th>Doanh thu</th>
+                            <th>Chi phí</th>
+                            <th>Lợi nhuận</th>
+                            <th>Lương</th>
+                            <th> Tạm ứng</th>
+                            <th> Hoàn ứng</th>
+                            <th> Còn lại</th>
+                            <th>Ảnh HĐ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-body">
+                        <!-- Dữ liệu sẽ được chèn vào đây -->
+                    </tbody>
+                </table>
+            </div>
             <div id="status-message" hidden></div>
             <button class="btn" onclick="logout()">Đăng xuất</button>
             <button class = "btn" onclick="window.location.href='driver.html'">👥 Tài xế</button>
@@ -65,6 +67,7 @@
             const { createClient } = supabase
             const sb = createClient('https://icwmtqfpbefntfxboofr.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM')
             const statusMessage = document.getElementById('status-message')
+            let tripsChannel = null
 
             function toNumber(value) {
                 const n = Number(value)
@@ -117,7 +120,7 @@
 
             function renderTrips(trips) {
                 const tbody = document.getElementById('report-body')
-                tbody.innerHTML = ''
+                tbody.textContent = ''
 
                 trips.forEach((trip) => {
                     const row = document.createElement('tr')
@@ -204,7 +207,7 @@
                 setTotals(totalDT, totalCP, totalluong)
 
                 if (trips.length === 0) {
-                    document.getElementById('report-body').innerHTML = ''
+                    document.getElementById('report-body').textContent = ''
                     showStatus('Chưa có dữ liệu chuyến đi', 'empty')
                     return
                 }
@@ -241,12 +244,12 @@
 
             async function initPage() {
                 try {
-                    setTotals(0, 0)
+                    setTotals(0, 0, 0)
                     hideStatus()
                     const allowed = await checkAccess()
                     if (!allowed) return
                     await loadTrips()
-                    sb.channel('trips-changes')
+                    tripsChannel = sb.channel('trips-changes')
                         .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, payload => {
                             console.log('Change detected:', payload)
                             loadTrips()
@@ -254,8 +257,8 @@
                         .subscribe()
                 } catch (err) {
                     console.error('Owner dashboard error:', err)
-                    setTotals(0, 0)
-                    document.getElementById('report-body').innerHTML = ''
+                    setTotals(0, 0, 0)
+                    document.getElementById('report-body').textContent = ''
                     showStatus('Không thể tải dữ liệu. Vui lòng thử lại.', 'error')
                 }
             }
@@ -266,6 +269,9 @@
             }
 
             initPage()
+            window.addEventListener('beforeunload', () => {
+                if (tripsChannel) sb.removeChannel(tripsChannel)
+            })
         </script>
     </body>
 </html>

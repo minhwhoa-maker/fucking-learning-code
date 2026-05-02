@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý tài xế</title>
-    <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -24,6 +24,7 @@
             <h3>Thêm tài xế mới</h3>
             <div class="form-row">
                 <input type="text" id="new-name" placeholder="Họ và tên">
+                <input type="email" id="new-email" placeholder="Email đăng nhập">
                 <input type="text" id="new-sdt" placeholder="Số điện thoại">
                 <button class="btn" onclick="addDriver()">Thêm</button>
             </div>
@@ -37,22 +38,25 @@
                 <button class="btn" onclick="loadDrivers()">Lọc</button>
                 <button class="btn" style="background: #888" onclick="clearFilter()">Tất cả</button>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th> Họ và tên</th>
-                        <th> SĐT</th>
-                        <th> Số chuyến</th>
-                        <th> Tổng lương</th>
-                        <th> Tạm ứng</th>
-                        <th> Thực nhận</th>
-                        <th> Xóa</th>
-                    </tr>
-                </thead>
-                <tbody id="driver-list">
-                    <tr><td colspan="7">Đang tải ...</td></tr>
-                </tbody>
-            </table>
+            <div class="table-scroll wide">
+                <table>
+                    <thead>
+                        <tr>
+                            <th> Họ và tên</th>
+                            <th> Email</th>
+                            <th> SĐT</th>
+                            <th> Số chuyến</th>
+                            <th> Tổng lương</th>
+                            <th> Tạm ứng</th>
+                            <th> Thực nhận</th>
+                            <th> Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="driver-list">
+                        <tr><td colspan="8">Đang tải ...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
     <script>
@@ -63,110 +67,203 @@
         )
 
         function formatMoney(n) {
-            return (n || 0).toLocaleString('vi-VN') + 'đ'
+            const amount = Number(n)
+            return (Number.isFinite(amount) ? amount : 0).toLocaleString('vi-VN') + ' đ'
+        }
+
+        function addCell(row, text) {
+            const cell = document.createElement('td')
+            cell.textContent = text
+            row.appendChild(cell)
+            return cell
+        }
+
+        function setDriverMessage(message) {
+            const tbody = document.getElementById('driver-list')
+            tbody.textContent = ''
+            const row = document.createElement('tr')
+            const cell = document.createElement('td')
+            cell.colSpan = 8
+            cell.textContent = message
+            row.appendChild(cell)
+            tbody.appendChild(row)
+        }
+
+        async function getUserRole(email) {
+            const { data, error } = await sb
+                .from('users')
+                .select('role')
+                .eq('email', email)
+                .maybeSingle()
+            if (error) throw new Error(error.message)
+            return data?.role ?? null
+        }
+
+        async function checkAccess() {
+            const { data, error } = await sb.auth.getSession()
+            if (error || !data?.session?.user?.email) {
+                window.location.href = 'bai10.html'
+                return false
+            }
+
+            try {
+                const role = await getUserRole(data.session.user.email)
+                if (role !== 'owner') {
+                    window.location.href = 'bai10.html'
+                    return false
+                }
+            } catch {
+                window.location.href = 'bai10.html'
+                return false
+            }
+
+            return true
         }
 
         async function addDriver() {
             const full_name = document.getElementById('new-name').value.trim()
+            const email = document.getElementById('new-email').value.trim().toLowerCase()
             const sdt = document.getElementById('new-sdt').value.trim()
-            if (!full_name || !sdt) {
+            if (!full_name || !email || !sdt) {
                 alert('Vui lòng điền đủ thông tin')
                 return
             }
+
             const { error } = await sb.from('users').insert({
                 full_name,
+                email,
                 sdt,
                 role: 'driver'
             })
+
             if (error) {
-                alert('lỗi: ' + error.message)
+                alert('Lỗi: ' + error.message)
             } else {
                 document.getElementById('add-msg').style.display = 'block'
                 document.getElementById('add-msg').textContent = 'Thêm tài xế thành công!'
                 document.getElementById('new-name').value = ''
+                document.getElementById('new-email').value = ''
                 document.getElementById('new-sdt').value = ''
                 setTimeout(() => {
                     document.getElementById('add-msg').style.display = 'none'
                     loadDrivers()
-                }, 2000)
+                }, 1200)
             }
         }
 
         async function deleteDriver(id, name) {
-            if (!confirm('xóa tài xế ' + name + '?')) return
+            if (!confirm('Xóa tài xế ' + name + '?')) return
             const { error } = await sb.from('users').delete().eq('id', id)
             if (error) alert('Lỗi: ' + error.message)
             else loadDrivers()
         }
 
         async function loadDrivers() {
-            const month = document.getElementById('filter-month').value
-            const { data: drivers } = await sb
-                .from('users')
-                .select('*')
-                .eq('role', 'driver')
+            try {
+                const month = document.getElementById('filter-month').value
+                const { data: drivers, error: driversError } = await sb
+                    .from('users')
+                    .select('*')
+                    .eq('role', 'driver')
 
-            if (!drivers || drivers.length === 0) {
-                document.getElementById('driver-list').innerHTML =
-                    '<tr><td colspan="7">Chưa có tài xế nào</td></tr>'
+                if (driversError) throw new Error(driversError.message)
+
+                if (!drivers || drivers.length === 0) {
+                    setDriverMessage('Chưa có tài xế nào')
+                    return
+                }
+
+                let tripsQuery = sb.from('trips').select('tai_xe_id, luong_chuyen, ngay')
+                if (month) {
+                    const start = month + '-01'
+                    const end = new Date(month + '-01')
+                    end.setMonth(end.getMonth() + 1)
+                    tripsQuery = tripsQuery.gte('ngay', start).lt('ngay', end.toISOString().split('T')[0])
+                }
+
+                const { data: trips, error: tripsError } = await tripsQuery
+                if (tripsError) throw new Error(tripsError.message)
+
+                let advancesQuery = sb.from('tam_ung_thang').select('*')
+                if (month) advancesQuery = advancesQuery.eq('thang', month)
+                const { data: advances, error: advancesError } = await advancesQuery
+                if (advancesError) throw new Error(advancesError.message)
+
+                const tbody = document.getElementById('driver-list')
+                tbody.textContent = ''
+                drivers.forEach(d => {
+                    const myTrips = (trips || []).filter(t => t.tai_xe_id === d.id)
+                    const totalLuong = myTrips.reduce((sum, t) => sum + (Number(t.luong_chuyen) || 0), 0)
+                    const myAdvances = (advances || []).filter(a => a.tai_xe_id === d.id)
+                    const totalAdvance = myAdvances.reduce((sum, a) => sum + (Number(a.so_tien) || 0), 0)
+                    const thucNhan = totalLuong - totalAdvance
+                    const row = document.createElement('tr')
+
+                    addCell(row, d.full_name || '-')
+                    addCell(row, d.email || '-')
+                    addCell(row, d.sdt || '-')
+                    addCell(row, myTrips.length + ' chuyến')
+                    addCell(row, formatMoney(totalLuong)).style.color = '#e67e22'
+                    addCell(row, formatMoney(totalAdvance)).style.color = '#e74c3c'
+                    const thucNhanCell = addCell(row, formatMoney(thucNhan))
+                    thucNhanCell.style.color = thucNhan >= 0 ? '#27ae60' : '#e74c3c'
+                    thucNhanCell.style.fontWeight = 'bold'
+
+                    const actionCell = document.createElement('td')
+                    const actions = document.createElement('div')
+                    actions.style.display = 'flex'
+                    actions.style.gap = '6px'
+                    actions.style.flexWrap = 'wrap'
+
+                    const advanceButton = document.createElement('button')
+                    advanceButton.className = 'btn'
+                    advanceButton.style.background = '#27ae60'
+                    advanceButton.style.padding = '6px 12px'
+                    advanceButton.textContent = '+ Tạm ứng'
+                    advanceButton.addEventListener('click', () => addAdvance(d.id, d.full_name || 'tài xế'))
+
+                    const deleteButton = document.createElement('button')
+                    deleteButton.className = 'btn btn-danger'
+                    deleteButton.style.padding = '6px 12px'
+                    deleteButton.textContent = 'Xóa'
+                    deleteButton.addEventListener('click', () => deleteDriver(d.id, d.full_name || 'tài xế'))
+
+                    actions.append(advanceButton, deleteButton)
+                    actionCell.appendChild(actions)
+                    row.appendChild(actionCell)
+                    tbody.appendChild(row)
+                })
+            } catch (err) {
+                console.error('Load drivers error:', err)
+                setDriverMessage('Không thể tải dữ liệu tài xế')
+                alert('Lỗi: ' + err.message)
+            }
+        }
+
+        async function addAdvance(driverId, driverName) {
+            const month = document.getElementById('filter-month').value
+            if (!month) {
+                alert('Vui lòng chọn tháng trước!')
                 return
             }
 
-            let tripsQuery = sb.from('trips').select('tai_xe_id, luong_chuyen, ngay')
-            if (month) {
-                const start = month + '-01'
-                const end = new Date(month + '-01')
-                end.setMonth(end.getMonth() + 1)
-                tripsQuery = tripsQuery.gte('ngay', start).lt('ngay', end.toISOString().split('T')[0])
+            const amount = prompt(`Nhập số tiền tạm ứng cho ${driverName} (tháng ${month}):`)
+            if (amount === null) return
+            const parsedAmount = Number(amount)
+            if (amount.trim() === '' || !Number.isFinite(parsedAmount) || parsedAmount < 0) {
+                alert('Số tiền tạm ứng không hợp lệ')
+                return
             }
 
-            const { data: trips } = await tripsQuery
-            let advencesQuery = sb.from('tam_ung_thang').select('*')
-            if (month) advencesQuery = advencesQuery.eq('thang', month)
-            const { data: advances } = await advencesQuery
-            const tbody = document.getElementById('driver-list')
-            tbody.innerHTML = drivers.map(d => {
-    const myTrips = (trips || []).filter(t => t.tai_xe_id === d.id)
-    const totalLuong = myTrips.reduce((sum, t) => sum + (t.luong_chuyen || 0), 0)
-    const myAdvances = (advances || []).filter(a => a.tai_xe_id === d.id)
-    const totalAdvance = myAdvances.reduce((sum, a) => sum + (a.so_tien || 0), 0)
-    const thucNhan = totalLuong - totalAdvance
-    const safeName = (d.full_name || '').replace(/'/g, "\\'")
+            const { error } = await sb.from('tam_ung_thang').insert({
+                tai_xe_id: driverId,
+                thang: month,
+                so_tien: parsedAmount
+            })
 
-    return `
-        <tr>
-            <td>${d.full_name || '-'}</td>
-            <td>${d.sdt || '-'}</td>
-            <td>${myTrips.length} chuyến</td>
-            <td style="color:#e67e22">${formatMoney(totalLuong)}</td>
-            <td style="color:#e74c3c">${formatMoney(totalAdvance)}</td>
-            <td style="color:${thucNhan >= 0 ? '#27ae60' : '#e74c3c'}; font-weight:bold">${formatMoney(thucNhan)}</td>
-            <td style="display:flex; gap:6px">
-                <button class="btn" style="background:#27ae60; padding:6px 12px" onclick="addAdvance('${d.id}', '${safeName}')">+ Tạm ứng</button>
-                <button class="btn btn-danger" style="padding:6px 12px" onclick="deleteDriver('${d.id}', '${safeName}')">Xóa</button>
-            </td>
-        </tr>
-    `
-}).join('')
+            if (error) alert('Lỗi: ' + error.message)
+            else loadDrivers()
         }
-        async function addAdvance(driverId, driverName) {
-    const month = document.getElementById('filter-month').value
-    if (!month) {
-        alert('Vui lòng chọn tháng trước!')
-        return
-    }
-    const amount = prompt(`Nhập số tiền tạm ứng cho ${driverName} (tháng ${month}):`)
-    if (!amount) return
-    
-    const { error } = await sb.from('tam_ung_thang').insert({
-        tai_xe_id: driverId,
-        thang: month,
-        so_tien: parseInt(amount) || 0
-    })
-    
-    if (error) alert('Lỗi: ' + error.message)
-    else loadDrivers()
-}
 
         function clearFilter() {
             document.getElementById('filter-month').value = ''
@@ -178,34 +275,47 @@
             window.location.href = 'bai10.html'
         }
 
-        loadDrivers()
         function exportExcel() {
-    const month = document.getElementById('filter-month').value || 'Tất cả'
-    const rows = [['Họ tên', 'SĐT', 'Số chuyến', 'Tổng lương', 'Tạm ứng', 'Thực nhận']]
+            if (typeof XLSX === 'undefined') {
+                alert('Không thể tải thư viện Excel')
+                return
+            }
 
-    document.querySelectorAll('#driver-list tr').forEach(tr => {
-        const cells = tr.querySelectorAll('td')
-        if (cells.length >= 6) {
-            rows.push([
-                cells[0].textContent,
-                cells[1].textContent,
-                cells[2].textContent,
-                cells[3].textContent,
-                cells[4].textContent,
-                cells[5].textContent
-            ])
+            const month = document.getElementById('filter-month').value || 'Tất cả'
+            const rows = [['Họ tên', 'Email', 'SĐT', 'Số chuyến', 'Tổng lương', 'Tạm ứng', 'Thực nhận']]
+
+            document.querySelectorAll('#driver-list tr').forEach(tr => {
+                const cells = tr.querySelectorAll('td')
+                if (cells.length >= 7) {
+                    rows.push([
+                        cells[0].textContent,
+                        cells[1].textContent,
+                        cells[2].textContent,
+                        cells[3].textContent,
+                        cells[4].textContent,
+                        cells[5].textContent,
+                        cells[6].textContent
+                    ])
+                }
+            })
+
+            const ws = XLSX.utils.aoa_to_sheet(rows)
+            const wb = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(wb, ws, 'Lương tài xế')
+            XLSX.writeFile(wb, `luong-tai-xe-${month}.xlsx`)
         }
-    })
 
-    const ws = XLSX.utils.aoa_to_sheet(rows)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Lương tài xế')
-    XLSX.writeFile(wb, `luong-tai-xe-${month}.xlsx`)
-}
+        function exportPDF() {
+            window.print()
+        }
 
-function exportPDF() {
-    window.print()
-}
+        async function initPage() {
+            setDriverMessage('Đang tải ...')
+            const allowed = await checkAccess()
+            if (allowed) loadDrivers()
+        }
+
+        initPage()
     </script>
 </body>
 </html>

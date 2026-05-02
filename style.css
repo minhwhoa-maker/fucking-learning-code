@@ -74,6 +74,7 @@ body {
     padding: 20px;
     margin-bottom: 16px;
     box-shadow: var(--shadow);
+    overflow-x: auto;
 }
 
 .card h3 {
@@ -107,6 +108,25 @@ body {
 
 .btn:hover { background: var(--primary-hover); }
 .btn:disabled { background: #90a4ae; cursor: not-allowed; }
+
+.btn-google {
+    width: 100%;
+    justify-content: center;
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 12px 18px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.2s;
+}
+.btn-google:hover { background: var(--primary-hover); }
+.btn-google:disabled { background: #90a4ae; cursor: not-allowed; }
 
 .btn-full {
     width: 100%;
@@ -189,6 +209,19 @@ body {
 
 /* --- TABLE --- */
 table { width: 100%; border-collapse: collapse; }
+
+.table-scroll {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.table-scroll table {
+    min-width: 640px;
+}
+
+.table-scroll.wide table {
+    min-width: 920px;
+}
 
 th {
     padding: 12px;
@@ -285,6 +318,16 @@ tr:hover td { background: #f9f9fc; }
 .msg.success { background: var(--success-light); color: #2e7d32; }
 .msg.error   { background: #fdecea; color: #c62828; }
 
+.message {
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    margin: 12px 0;
+    font-size: 14px;
+}
+.message.empty { background: #f4f6f9; color: var(--text-muted); }
+.message.error { background: #fdecea; color: #c62828; }
+.message.success { background: var(--success-light); color: #2e7d32; }
+
 /* --- TOAST NOTIFICATION --- */
 .toast {
     position: fixed;
@@ -329,8 +372,22 @@ tr:hover td { background: #f9f9fc; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+#dashboard {
+    display: none;
+    text-align: center;
+}
+
+.logo {
+    font-size: 42px;
+    line-height: 1;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
 /* --- UPLOAD BUTTONS (driver page) --- */
 .upload-buttons { display: flex; gap: 10px; }
+
+.upload-input { display: none; }
 
 .btn-upload {
     flex: 1;

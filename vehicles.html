@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý xe</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="header">
         <h2>🚛 Quản lý xe</h2>
-        <div style="display:flex; gap: 100px">
+        <div style="display:flex; gap: 10px">
             <button class="btn" onclick="window.location.href='owner-dashboard.html'">← Dashboard</button>
             <button class="btn btn-logout" onclick="logout()">Logout</button>
         </div>
@@ -31,21 +31,23 @@
         </div>
         <div class="card">
             <h3>Danh sách xe</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Biển số</th>
-                        <th>Loại</th>
-                        <th>Năm sx</th>
-                        <th>Tài xế</th>
-                        <th>Trạng thái</th>
-                        <th>Hành động</th>
-                    </tr>
-                </thead>
-                <tbody id="vehicle-list">
-                    <tr><td colspan="6">Đang tải ...</td></tr>
-                </tbody>
-            </table>
+            <div class="table-scroll wide">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Biển số</th>
+                            <th>Loại</th>
+                            <th>Năm sx</th>
+                            <th>Tài xế</th>
+                            <th>Trạng thái</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vehicle-list">
+                        <tr><td colspan="6">Đang tải ...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
     <script>
@@ -56,28 +58,130 @@
         )
         let drivers = []
 
+        const statusLabels = {
+            hoat_dong: '🟢 Hoạt động',
+            bao_duong: '🟡 Bảo dưỡng',
+            tam_nghi: '🔴 Tạm nghỉ'
+        }
+        const maintenanceTypes = [
+            ['hong_hoc', 'Hỏng hóc'],
+            ['linh_kien', 'Linh kiện'],
+            ['lop_xe', 'Lốp xe'],
+            ['dinh_ky', 'Định kỳ']
+        ]
+
+        function addCell(row, text) {
+            const cell = document.createElement('td')
+            cell.textContent = text
+            row.appendChild(cell)
+            return cell
+        }
+
+        function createButton(text, className, onClick) {
+            const button = document.createElement('button')
+            button.type = 'button'
+            button.className = className
+            button.style.padding = '6px 12px'
+            button.textContent = text
+            button.addEventListener('click', onClick)
+            return button
+        }
+
+        function setVehicleMessage(message) {
+            const tbody = document.getElementById('vehicle-list')
+            tbody.textContent = ''
+            const row = document.createElement('tr')
+            const cell = document.createElement('td')
+            cell.colSpan = 6
+            cell.textContent = message
+            row.appendChild(cell)
+            tbody.appendChild(row)
+        }
+
+        function formatMoney(n) {
+            const amount = Number(n)
+            return Number.isFinite(amount) ? amount.toLocaleString('vi-VN') + ' ₫' : '-'
+        }
+
+        async function getUserRole(email) {
+            const { data, error } = await sb
+                .from('users')
+                .select('role')
+                .eq('email', email)
+                .maybeSingle()
+            if (error) throw new Error(error.message)
+            return data?.role ?? null
+        }
+
+        async function checkAccess() {
+            const { data, error } = await sb.auth.getSession()
+            if (error || !data?.session?.user?.email) {
+                window.location.href = 'bai10.html'
+                return false
+            }
+
+            try {
+                const role = await getUserRole(data.session.user.email)
+                if (role !== 'owner') {
+                    window.location.href = 'bai10.html'
+                    return false
+                }
+            } catch {
+                window.location.href = 'bai10.html'
+                return false
+            }
+
+            return true
+        }
+
         async function loadDrivers() {
-            const { data } = await sb.from('users').select('*').eq('role', 'driver')
-            drivers = data || []
-            const select = document.getElementById('new-tai-xe')
-            select.innerHTML = '<option value="">-- Chọn tài xế --</option>'
-            drivers.forEach(d => {
-                select.innerHTML += `<option value="${d.id}">${d.full_name}</option>`
-            })
+            try {
+                const { data, error } = await sb.from('users').select('id, full_name').eq('role', 'driver')
+                if (error) throw new Error(error.message)
+
+                drivers = data || []
+                const select = document.getElementById('new-tai-xe')
+                select.textContent = ''
+                const defaultOption = document.createElement('option')
+                defaultOption.value = ''
+                defaultOption.textContent = '-- Chọn tài xế --'
+                select.appendChild(defaultOption)
+
+                drivers.forEach(d => {
+                    const option = document.createElement('option')
+                    option.value = d.id
+                    option.textContent = d.full_name || 'Chưa đặt tên'
+                    select.appendChild(option)
+                })
+            } catch (err) {
+                console.error('Load drivers error:', err)
+                drivers = []
+                alert('Không thể tải danh sách tài xế: ' + err.message)
+            }
         }
 
         async function addVehicle() {
             const bien_so = document.getElementById('new-bien-so').value.trim()
             const loai_xe = document.getElementById('new-loai').value.trim()
-            const nam_sx = parseInt(document.getElementById('new-nam').value) || null
+            const namRaw = document.getElementById('new-nam').value
+            const nam_sx = namRaw === '' ? null : Number(namRaw)
             const tai_xe_id = document.getElementById('new-tai-xe').value || null
 
             if (!bien_so) {
                 alert('Vui lòng nhập biển số!')
                 return
             }
+            if (namRaw !== '' && !Number.isFinite(nam_sx)) {
+                alert('Năm sản xuất không hợp lệ!')
+                return
+            }
+
             const { error } = await sb.from('xe').insert({
-                bien_so, loai_xe, nam_sx, tai_xe_id, trang_thai: 'hoat_dong'
+                bien_so,
+                loai_xe,
+                nam_sx,
+                tai_xe_id,
+                trang_thai: 'hoat_dong'
             })
 
             if (error) alert('Lỗi: ' + error.message)
@@ -92,9 +196,9 @@
 
         async function changeStatus(id, currentStatus) {
             const statusMap = {
-                'hoat_dong': 'bao_duong',
-                'bao_duong': 'tam_nghi',
-                'tam_nghi': 'hoat_dong'
+                hoat_dong: 'bao_duong',
+                bao_duong: 'tam_nghi',
+                tam_nghi: 'hoat_dong'
             }
             const newStatus = statusMap[currentStatus] || 'hoat_dong'
 
@@ -110,68 +214,126 @@
             else loadVehicles()
         }
 
+        function buildMaintenanceRow(vehicleId, bienSo) {
+            const today = new Date().toISOString().split('T')[0]
+            const row = document.createElement('tr')
+            row.id = 'maint-row-' + vehicleId
+            row.style.display = 'none'
+
+            const cell = document.createElement('td')
+            cell.colSpan = 6
+            cell.style.padding = '0 12px 12px'
+
+            const panel = document.createElement('div')
+            panel.className = 'maintenance-panel'
+
+            const title = document.createElement('h4')
+            title.textContent = '🔧 Bảo dưỡng xe ' + bienSo
+
+            const formRow = document.createElement('div')
+            formRow.className = 'form-row'
+
+            const dateInput = document.createElement('input')
+            dateInput.type = 'date'
+            dateInput.id = 'maint-ngay-' + vehicleId
+            dateInput.value = today
+
+            const typeSelect = document.createElement('select')
+            typeSelect.id = 'maint-loai-' + vehicleId
+            maintenanceTypes.forEach(([value, label]) => {
+                const option = document.createElement('option')
+                option.value = value
+                option.textContent = label
+                typeSelect.appendChild(option)
+            })
+
+            const descInput = document.createElement('input')
+            descInput.type = 'text'
+            descInput.id = 'maint-mota-' + vehicleId
+            descInput.placeholder = 'Mô tả'
+
+            const costInput = document.createElement('input')
+            costInput.type = 'number'
+            costInput.id = 'maint-chiphi-' + vehicleId
+            costInput.placeholder = 'Chi phí (VNĐ)'
+
+            const addButton = createButton('+ Thêm', 'btn btn-success', () => addMaintenance(vehicleId))
+            const history = document.createElement('div')
+            history.id = 'maint-history-' + vehicleId
+
+            formRow.append(dateInput, typeSelect, descInput, costInput, addButton)
+            panel.append(title, formRow, history)
+            cell.appendChild(panel)
+            row.appendChild(cell)
+            return row
+        }
+
         async function loadVehicles() {
-            const { data } = await sb.from('xe').select('*').order('created_at', { ascending: false })
+            try {
+                const { data, error } = await sb.from('xe').select('*').order('created_at', { ascending: false })
+                if (error) throw new Error(error.message)
 
-            const tbody = document.getElementById('vehicle-list')
-            if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6">Chưa có xe nào</td></tr>'
-                return
+                const tbody = document.getElementById('vehicle-list')
+                if (!data || data.length === 0) {
+                    setVehicleMessage('Chưa có xe nào')
+                    return
+                }
+
+                tbody.textContent = ''
+                data.forEach(v => {
+                    const driver = drivers.find(d => d.id === v.tai_xe_id)
+                    const row = document.createElement('tr')
+
+                    const plateCell = document.createElement('td')
+                    const plate = document.createElement('strong')
+                    plate.textContent = v.bien_so || '-'
+                    plateCell.appendChild(plate)
+                    row.appendChild(plateCell)
+
+                    addCell(row, v.loai_xe || '-')
+                    addCell(row, v.nam_sx || '-')
+                    addCell(row, driver ? driver.full_name : '-')
+
+                    const statusCell = document.createElement('td')
+                    const status = document.createElement('span')
+                    status.className = statusLabels[v.trang_thai] ? 'status status-' + v.trang_thai : 'status'
+                    status.textContent = statusLabels[v.trang_thai] || v.trang_thai || '-'
+                    statusCell.appendChild(status)
+                    row.appendChild(statusCell)
+
+                    const actionCell = document.createElement('td')
+                    const actions = document.createElement('div')
+                    actions.style.display = 'flex'
+                    actions.style.gap = '6px'
+                    actions.style.flexWrap = 'wrap'
+                    actions.append(
+                        createButton('Đổi TT', 'btn', () => changeStatus(v.id, v.trang_thai)),
+                        createButton('🔧 Bảo dưỡng', 'btn btn-warning', () => toggleMaintenance(v.id)),
+                        createButton('Xóa', 'btn btn-danger', () => deleteVehicle(v.id, v.bien_so || ''))
+                    )
+                    actionCell.appendChild(actions)
+                    row.appendChild(actionCell)
+
+                    tbody.appendChild(row)
+                    tbody.appendChild(buildMaintenanceRow(v.id, v.bien_so || ''))
+                })
+            } catch (err) {
+                console.error('Load vehicles error:', err)
+                setVehicleMessage('Không thể tải dữ liệu xe')
+                alert('Lỗi: ' + err.message)
             }
-
-            const statusLabels = {
-                'hoat_dong': '🟢 Hoạt động',
-                'bao_duong': '🟡 Bảo dưỡng',
-                'tam_nghi': '🔴 Tạm nghỉ'
-            }
-
-            tbody.innerHTML = data.map(v => {
-                const driver = drivers.find(d => d.id === v.tai_xe_id)
-                const today = new Date().toISOString().split('T')[0]
-                return `
-                    <tr>
-                        <td><strong>${v.bien_so}</strong></td>
-                        <td>${v.loai_xe || '-'}</td>
-                        <td>${v.nam_sx || '-'}</td>
-                        <td>${driver ? driver.full_name : '-'}</td>
-                        <td><span class="status status-${v.trang_thai}">${statusLabels[v.trang_thai] || v.trang_thai}</span></td>
-                        <td style="display:flex; gap:6px; flex-wrap:wrap">
-                            <button class="btn" style="padding:6px 12px" onclick="changeStatus('${v.id}', '${v.trang_thai}')">Đổi TT</button>
-                            <button class="btn btn-warning" style="padding:6px 12px" onclick="toggleMaintenance('${v.id}')">🔧 Bảo dưỡng</button>
-                            <button class="btn btn-danger" style="padding:6px 12px" onclick="deleteVehicle('${v.id}', '${v.bien_so}')">Xóa</button>
-                        </td>
-                    </tr>
-                    <tr id="maint-row-${v.id}" style="display:none">
-                        <td colspan="6" style="padding:0 12px 12px">
-                            <div class="maintenance-panel">
-                                <h4>🔧 Bảo dưỡng xe ${v.bien_so}</h4>
-                                <div class="form-row">
-                                    <input type="date" id="maint-ngay-${v.id}" value="${today}">
-                                    <select id="maint-loai-${v.id}">
-                                        <option value="hong_hoc">Hỏng hóc</option>
-                                        <option value="linh_kien">Linh kiện</option>
-                                        <option value="lop_xe">Lốp xe</option>
-                                        <option value="dinh_ky">Định kỳ</option>
-                                    </select>
-                                    <input type="text" id="maint-mota-${v.id}" placeholder="Mô tả">
-                                    <input type="number" id="maint-chiphi-${v.id}" placeholder="Chi phí (VNĐ)">
-                                    <button class="btn btn-success" onclick="addMaintenance('${v.id}')">+ Thêm</button>
-                                </div>
-                                <div id="maint-history-${v.id}"></div>
-                            </div>
-                        </td>
-                    </tr>
-                `
-            }).join('')
         }
 
         function fmtDate(iso) {
+            if (!iso || typeof iso !== 'string') return ''
             const [y, m, d] = iso.split('-')
+            if (!y || !m || !d) return iso
             return d + '/' + m + '/' + y.slice(2)
         }
 
         function toggleMaintenance(xeId) {
             const row = document.getElementById('maint-row-' + xeId)
+            if (!row) return
             if (row.style.display === 'none') {
                 row.style.display = ''
                 loadMaintenance(xeId)
@@ -180,55 +342,89 @@
             }
         }
 
+        function setMaintenanceMessage(container, message) {
+            container.textContent = ''
+            const p = document.createElement('p')
+            p.style.color = '#999'
+            p.style.marginTop = '8px'
+            p.textContent = message
+            container.appendChild(p)
+        }
+
         async function loadMaintenance(xeId) {
             const container = document.getElementById('maint-history-' + xeId)
-            container.innerHTML = '<p style="color:#999; margin-top:8px">Đang tải...</p>'
+            if (!container) return
+            setMaintenanceMessage(container, 'Đang tải...')
 
             const { data, error } = await sb.from('bao_duong').select('*').eq('xe_id', xeId).order('ngay', { ascending: false })
-
-            const loaiLabels = { hong_hoc: 'Hỏng hóc', linh_kien: 'Linh kiện', lop_xe: 'Lốp xe', dinh_ky: 'Định kỳ' }
-
-            if (!data || data.length === 0) {
-                container.innerHTML = '<p style="color:#999; margin-top:8px">Chưa có lịch sử bảo dưỡng</p>'
+            if (error) {
+                setMaintenanceMessage(container, 'Không thể tải lịch sử bảo dưỡng')
+                alert('Lỗi: ' + error.message)
                 return
             }
 
-            container.innerHTML = `
-                <table style="margin-top:12px">
-                    <thead>
-                        <tr>
-                            <th>Ngày</th>
-                            <th>Loại</th>
-                            <th>Mô tả</th>
-                            <th>Chi phí</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.map(m => `
-                            <tr>
-                                <td>${fmtDate(m.ngay)}</td>
-                                <td>${loaiLabels[m.loai] || m.loai}</td>
-                                <td>${m.mo_ta || '-'}</td>
-                                <td>${m.chi_phi ? Number(m.chi_phi).toLocaleString('vi-VN') + ' ₫' : '-'}</td>
-                                <td><button class="btn btn-danger" style="padding:4px 8px; font-size:12px" onclick="deleteMaintenance('${m.id}', '${xeId}')">Xóa</button></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `
+            if (!data || data.length === 0) {
+                setMaintenanceMessage(container, 'Chưa có lịch sử bảo dưỡng')
+                return
+            }
+
+            const loaiLabels = Object.fromEntries(maintenanceTypes)
+            const table = document.createElement('table')
+            table.style.marginTop = '12px'
+
+            const thead = document.createElement('thead')
+            const headRow = document.createElement('tr')
+            const headers = ['Ngày', 'Loại', 'Mô tả', 'Chi phí', '']
+            headers.forEach(label => {
+                const th = document.createElement('th')
+                th.textContent = label
+                headRow.appendChild(th)
+            })
+            thead.appendChild(headRow)
+
+            const tbody = document.createElement('tbody')
+            data.forEach(m => {
+                const row = document.createElement('tr')
+                addCell(row, fmtDate(m.ngay))
+                addCell(row, loaiLabels[m.loai] || m.loai || '-')
+                addCell(row, m.mo_ta || '-')
+                addCell(row, m.chi_phi === null || m.chi_phi === undefined ? '-' : formatMoney(m.chi_phi))
+
+                const actionCell = document.createElement('td')
+                const deleteButton = createButton('Xóa', 'btn btn-danger', () => deleteMaintenance(m.id, xeId))
+                deleteButton.style.padding = '4px 8px'
+                deleteButton.style.fontSize = '12px'
+                actionCell.appendChild(deleteButton)
+                row.appendChild(actionCell)
+                tbody.appendChild(row)
+            })
+
+            table.append(thead, tbody)
+            container.textContent = ''
+            container.appendChild(table)
         }
 
         async function addMaintenance(xeId) {
             const ngay = document.getElementById('maint-ngay-' + xeId).value
             const loai = document.getElementById('maint-loai-' + xeId).value
             const mo_ta = document.getElementById('maint-mota-' + xeId).value.trim()
-            const chi_phi = parseFloat(document.getElementById('maint-chiphi-' + xeId).value) || null
+            const chiPhiRaw = document.getElementById('maint-chiphi-' + xeId).value
+            const chi_phi = chiPhiRaw === '' ? null : Number(chiPhiRaw)
 
-            if (!ngay) { alert('Vui lòng chọn ngày!'); return }
+            if (!ngay) {
+                alert('Vui lòng chọn ngày!')
+                return
+            }
+            if (chiPhiRaw !== '' && (!Number.isFinite(chi_phi) || chi_phi < 0)) {
+                alert('Chi phí không hợp lệ!')
+                return
+            }
 
             const { error } = await sb.from('bao_duong').insert({ xe_id: xeId, ngay, loai, mo_ta, chi_phi })
-            if (error) { alert('Lỗi: ' + error.message); return }
+            if (error) {
+                alert('Lỗi: ' + error.message)
+                return
+            }
 
             document.getElementById('maint-mota-' + xeId).value = ''
             document.getElementById('maint-chiphi-' + xeId).value = ''
@@ -248,6 +444,9 @@
         }
 
         async function init() {
+            setVehicleMessage('Đang tải ...')
+            const allowed = await checkAccess()
+            if (!allowed) return
             await loadDrivers()
             await loadVehicles()
         }
