@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý Vận tải</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
     <style>
         /* Login page-specific styles */
         body.login-page {
@@ -379,35 +379,54 @@
         }
 
         async function checkUserRole(user) {
-            const {data} = await sb
+            const {data, error} = await sb
                 .from('users')
                 .select('role')
                 .eq('email', user.email)
                 .maybeSingle();
 
+            if (error) {
+                throw new Error(error.message);
+            }
+
             if (!data) {
-                await sb.from('users').insert({
+                const {error: insertError} = await sb.from('users').insert({
                     id: user.id,
                     email: user.email,
-                    full_name: user.user_metadata.full_name,
+                    full_name: user.user_metadata.full_name || user.email,
                     role: 'driver'
                 });
+                if (insertError) {
+                    throw new Error(insertError.message);
+                }
                 return 'driver';
             }
             return data.role;
         }
 
         async function redirectByRole(user) {
-            const role = await checkUserRole(user);
-            showLoading(role === 'owner' ? 'Đang vào dashboard...' : 'Đang vào trang tài xế...');
-            setTimeout(() => {
-                window.location.href = role === 'owner' ? 'owner-dashboard.html' : 'driver-page.html';
-            }, 600);
+            try {
+                const role = await checkUserRole(user);
+                showLoading(role === 'owner' ? 'Đang vào dashboard...' : 'Đang vào trang tài xế...');
+                setTimeout(() => {
+                    window.location.href = role === 'owner' ? 'owner-dashboard.html' : 'driver-page.html';
+                }, 600);
+            } catch (err) {
+                console.error('Role check error:', err);
+                showLogin();
+                showToast('Không thể xác thực quyền truy cập. Vui lòng thử lại.', 'error');
+            }
         }
 
         async function checkUser() {
             showLoading();
-            const {data: {session}} = await sb.auth.getSession();
+            const {data, error} = await sb.auth.getSession();
+            if (error) {
+                showLogin();
+                showToast('Không thể xác thực phiên đăng nhập.', 'error');
+                return;
+            }
+            const session = data?.session;
             if (session) {
                 await redirectByRole(session.user);
                 return;
@@ -427,7 +446,7 @@
         checkUser();
 
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
+            navigator.serviceWorker.register('sw.js')
                 .then(() => console.log('SW registered'))
                 .catch(err => console.log('SW error:', err));
         }
