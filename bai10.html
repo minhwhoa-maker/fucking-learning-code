@@ -2,12 +2,11 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title> Bai 10 - Role base access control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Vận tải</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="manifest" href="/manifest.json">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -20,31 +19,38 @@
             min-height: 100vh;
         }
 
-
         .card {
             background: white;
             padding: 40px 36px;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             text-align: center;
             width: 320px;
+        }
+
+        .logo {
+            font-size: 40px;
+            margin-bottom: 12px;
         }
 
         .card h2 {
             color: #1565c0;
             font-size: 22px;
             font-weight: 700;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .card p {
-            color: #666;
+            color: #888;
             font-size: 14px;
-            margin-bottom: 4px;
+            margin-bottom: 24px;
         }
 
-        button {
-            background: #1565c0;
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
             background: #1565c0;
             color: white;
             border: none;
@@ -54,41 +60,128 @@
             font-weight: 600;
             cursor: pointer;
             width: 100%;
-            margin-top: 20px;
-            transition: background 0.2s;
             transition: background 0.2s;
         }
 
-        button:hover { background: #1976d2; }
+        .btn-google:hover { background: #1976d2; }
+        .btn-google:disabled { background: #90a4ae; cursor: not-allowed; }
 
-        #dashboard {display: none;}
+        /* Loading spinner */
+        .loading {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 20px 0;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #e3f2fd;
+            border-top-color: #1565c0;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading p {
+            color: #1565c0;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #323232;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 999;
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.error { background: #c62828; }
+
+        #dashboard { display: none; }
     </style>
 </head>
 <body>
     <div class="card">
-        <div id="Login-section">
-            <h2>Fleet app</h2>
+        <div id="login-section">
+            <div class="logo">🚛</div>
+            <h2>Quản lý Vận tải</h2>
             <p>Đăng nhập để tiếp tục</p>
-            <button onclick="LoginGoogle()">Đăng nhập với Google</button>
+            <button class="btn-google" onclick="loginGoogle()" id="btn-login">
+                <svg width="18" height="18" viewBox="0 0 48 48">
+                    <path fill="#FFF" d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-20.5 0-1.4-.1-2.7-.5-4-.1.5z"/>
+                </svg>
+                Đăng nhập với Google
+            </button>
         </div>
+
+        <div class="loading" id="loading-section">
+            <div class="spinner"></div>
+            <p id="loading-text">Đang xác thực...</p>
+        </div>
+
         <div id="dashboard">
-            <img id="avatar" src="" width="60" style="border-radius:50%; margin-bottom: 20px;">
+            <img id="avatar" src="" width="60" style="border-radius:50%; margin-bottom:16px;">
             <h3 id="user-name"></h3>
-            <p id="user-email" style="color:gray; font-size: 14px"></p>
-            <p>Role: <strong id="user-role"></strong></p>
-            <button onclick="logout()" style="background:#ea4335">logout</button>
+            <p id="user-email" style="color:#888; font-size:14px; margin-top:4px;"></p>
         </div>
     </div>
+
+    <div class="toast" id="toast"></div>
+
     <script>
         const {createClient} = supabase;
-        const sb = createClient('https://icwmtqfpbefntfxboofr.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM');
+        const sb = createClient(
+            'https://icwmtqfpbefntfxboofr.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM'
+        );
 
-        async function LoginGoogle() {
+        function showToast(msg, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => toast.className = 'toast', 3000);
+        }
+
+        function showLoading(text = 'Đang xác thực...') {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('loading-section').style.display = 'flex';
+            document.getElementById('loading-text').textContent = text;
+        }
+
+        function showLogin() {
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('loading-section').style.display = 'none';
+        }
+
+        async function loginGoogle() {
+            document.getElementById('btn-login').disabled = true;
             const {error} = await sb.auth.signInWithOAuth({
-                provider: "google",
+                provider: 'google',
                 options: { redirectTo: 'https://fucking-learning-code.vercel.app/bai10.html' }
             });
-            if (error) alert('Đăng nhập thất bại: ' + error.message);
+            if (error) {
+                showToast('Đăng nhập thất bại: ' + error.message, 'error');
+                document.getElementById('btn-login').disabled = false;
+            }
         }
 
         async function logout() {
@@ -97,7 +190,7 @@
         }
 
         async function checkUserRole(user) {
-            const {data, error} = await sb
+            const {data} = await sb
                 .from('users')
                 .select('role')
                 .eq('email', user.email)
@@ -113,51 +206,48 @@
                 if (insertError) console.log('Insert error:', insertError.message);
                 return 'driver';
             }
-
             return data.role;
         }
 
-        async function showDashboard(user, role) {
-            document.getElementById('Login-section').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'block';
+        async function redirectByRole(user) {
             document.getElementById('user-name').textContent = user.user_metadata.full_name;
             document.getElementById('user-email').textContent = user.email;
             document.getElementById('avatar').src = user.user_metadata.avatar_url;
-            document.getElementById('user-role').textContent = role;
+            document.getElementById('dashboard').style.display = 'block';
 
-            if (role === 'owner') {
-                window.location.href = 'owner-dashboard.html';
-            } else {
-                window.location.href = 'driver-page.html';
-            }
+            const role = await checkUserRole(user);
+            showLoading(role === 'owner' ? 'Đang vào dashboard...' : 'Đang vào trang tài xế...');
+
+            setTimeout(() => {
+                window.location.href = role === 'owner' ? 'owner-dashboard.html' : 'driver-page.html';
+            }, 600);
         }
 
         async function checkUser() {
-            const {data: {session}, error} = await sb.auth.getSession();
-            if (error) { alert('Session error: ' + error.message); return; }
+            showLoading();
+            const {data: {session}} = await sb.auth.getSession();
             if (session) {
-                const role = await checkUserRole(session.user);
-                await showDashboard(session.user, role);
+                await redirectByRole(session.user);
+            } else {
+                showLogin();
             }
+
             sb.auth.onAuthStateChange(async (event, session) => {
                 if (session) {
-                    const role = await checkUserRole(session.user);
-                    await showDashboard(session.user, role);
+                    await redirectByRole(session.user);
                 } else {
-                    document.getElementById('Login-section').style.display = 'block';
-                    document.getElementById('dashboard').style.display = 'none';
+                    showLogin();
                 }
             });
         }
 
         checkUser();
-        
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
-      .then(() => console.log('SW registered'))
-      .catch(err => console.log('SW error:', err));
-  }
 
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(() => console.log('SW registered'))
+                .catch(err => console.log('SW error:', err));
+        }
     </script>
 </body>
 </html>

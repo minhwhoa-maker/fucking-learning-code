@@ -25,9 +25,12 @@
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM
 
 ## Current status
-- Bài 24: Cải tiến UX ảnh hóa đơn — hoàn thành
-  - driver-page: tách thành 2 button riêng (chụp ảnh camera, chọn từ thư viện)
-  - owner-dashboard: thêm cột "Ảnh HĐ" — thumbnail 50×50px clickable, mở full ảnh tab mới
+- Bài 25: Đồng bộ style toàn app theo chuẩn bai10.html — hoàn thành
+  - Font: tất cả dùng `-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif`
+  - Background body: tất cả dùng `#f0f2f5`
+  - Màu primary: tất cả dùng `#1565c0`, hover `#1976d2`
+  - Card: `border-radius: 12px`, `box-shadow: 0 2px 8px rgba(0,0,0,0.08)`
+  - Button/input border-radius: `8px`
 
 ## Progress
 - Bài 1-7: HTML/CSS/JS cơ bản
@@ -48,6 +51,7 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZ
 - Bài 22: Bảo dưỡng xe ✓
 - Bài 23: Upload ảnh hóa đơn ✓
 - Bài 24: Cải tiến UX ảnh hóa đơn (2 button driver, thumbnail owner) ✓
+- Bài 25: Đồng bộ style toàn app (font, màu, border-radius, shadow) ✓
 
 ## Supabase Storage
 - Bucket: receipts (cần bật Public access để getPublicUrl hoạt động)
