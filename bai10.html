@@ -228,14 +228,15 @@
             const {data: {session}} = await sb.auth.getSession();
             if (session) {
                 await redirectByRole(session.user);
+                return;
             } else {
                 showLogin();
             }
 
             sb.auth.onAuthStateChange(async (event, session) => {
-                if (session) {
+                if (event === 'SIGNED_IN' && session) {
                     await redirectByRole(session.user);
-                } else {
+                } else if (event === 'SIGNED_OUT') {
                     showLogin();
                 }
             });
