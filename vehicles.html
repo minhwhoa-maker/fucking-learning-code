@@ -2,84 +2,11 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý xe</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="manifest" href="/manifest.json">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }
-        .header {
-            background: #1565c0;
-            color: white;
-            padding: 16px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .container { padding: 24px; max-width: 1100px; margin: 0 auto; }
-        .card {
-            background: white;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 24px;
-        }
-        .card h3 { margin-bottom: 16px; color: #1565c0; }
-        .form-row {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-        }
-        .form-row input, .form-row select {
-            flex: 1;
-            min-width: 150px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 15px;
-        }
-        .btn {
-            background: #1565c0;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 15px;
-        }
-        .btn:hover { background: #1976d2; }
-        .btn-red { background: #e74c3c; }
-        .btn-logout { background: #e74c3c; }
-
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #1565c0; color: white; padding: 12px; text-align: left; }
-        td { padding: 12px; border-bottom: 1px solid #f0f2f5; }
-        tr:hover td { background: #f8f9fa; }
-
-        .status {
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: bold;
-        }
-        .status-hoat_dong { background: #d4edda; color: #155724; }
-        .status-bao_duong { background: #fff3cd; color: #856404; }
-        .status-tam_nghi { background: #f8d7da; color: #721c24; }
-
-        .btn-orange { background: #f39c12; }
-        .btn-orange:hover { background: #e67e22; }
-        .btn-green { background: #27ae60; }
-        .btn-green:hover { background: #2ecc71; }
-
-        .maintenance-panel {
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 16px;
-        }
-        .maintenance-panel h4 { color: #1565c0; margin-bottom: 12px; }
-    </style>
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
     <div class="header">
@@ -210,8 +137,8 @@
                         <td><span class="status status-${v.trang_thai}">${statusLabels[v.trang_thai] || v.trang_thai}</span></td>
                         <td style="display:flex; gap:6px; flex-wrap:wrap">
                             <button class="btn" style="padding:6px 12px" onclick="changeStatus('${v.id}', '${v.trang_thai}')">Đổi TT</button>
-                            <button class="btn btn-orange" style="padding:6px 12px" onclick="toggleMaintenance('${v.id}')">🔧 Bảo dưỡng</button>
-                            <button class="btn btn-red" style="padding:6px 12px" onclick="deleteVehicle('${v.id}', '${v.bien_so}')">Xóa</button>
+                            <button class="btn btn-warning" style="padding:6px 12px" onclick="toggleMaintenance('${v.id}')">🔧 Bảo dưỡng</button>
+                            <button class="btn btn-danger" style="padding:6px 12px" onclick="deleteVehicle('${v.id}', '${v.bien_so}')">Xóa</button>
                         </td>
                     </tr>
                     <tr id="maint-row-${v.id}" style="display:none">
@@ -228,7 +155,7 @@
                                     </select>
                                     <input type="text" id="maint-mota-${v.id}" placeholder="Mô tả">
                                     <input type="number" id="maint-chiphi-${v.id}" placeholder="Chi phí (VNĐ)">
-                                    <button class="btn btn-green" onclick="addMaintenance('${v.id}')">+ Thêm</button>
+                                    <button class="btn btn-success" onclick="addMaintenance('${v.id}')">+ Thêm</button>
                                 </div>
                                 <div id="maint-history-${v.id}"></div>
                             </div>
@@ -284,7 +211,7 @@
                                 <td>${loaiLabels[m.loai] || m.loai}</td>
                                 <td>${m.mo_ta || '-'}</td>
                                 <td>${m.chi_phi ? Number(m.chi_phi).toLocaleString('vi-VN') + ' ₫' : '-'}</td>
-                                <td><button class="btn btn-red" style="padding:4px 8px; font-size:12px" onclick="deleteMaintenance('${m.id}', '${xeId}')">Xóa</button></td>
+                                <td><button class="btn btn-danger" style="padding:4px 8px; font-size:12px" onclick="deleteMaintenance('${m.id}', '${xeId}')">Xóa</button></td>
                             </tr>
                         `).join('')}
                     </tbody>

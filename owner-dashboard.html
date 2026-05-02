@@ -2,126 +2,11 @@
 <html lang="vi">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Owner Dashboard</title>
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <link rel="manifest" href="/manifest.json">
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-                background: #f0f2f5;
-                min-height: 100vh;
-            }
-
-            .header {
-                background: #1565c0;
-                color: white;
-                padding: 16px 20px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-
-            .container {
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-                padding: 20px;
-                max-width: 900px;
-                margin: 16px;
-                overflow-x: auto;
-            }
-
-            .stat {
-                display: flex;
-                gap: 12px;
-                flex-wrap: wrap;
-                margin: 16px 0;
-            }
-
-            .stat-card {
-                background: white;
-                border-radius: 12px;
-                padding: 20px;
-                flex: 1;
-                min-width: 140px;
-                text-align: center;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            }
-
-            .stat-card h3 {
-                font-size: 13px;
-                font-weight: 700;
-                color: #888;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                margin-bottom: 8px;
-            }
-
-            .doanh-thu { font-size: 22px; font-weight: 700; color: #2e7d32; }
-            .chi-phi   { font-size: 22px; font-weight: 700; color: #c62828; }
-            .loi-nhuan { font-size: 22px; font-weight: 700; color: #1565c0; }
-            .luong     { font-size: 22px; font-weight: 700; color: #e67e22; }
-
-            .message {
-                margin-top: 16px;
-                padding: 12px 16px;
-                border-radius: 8px;
-                font-size: 14px;
-            }
-
-            .message.error { background: #fdecea; color: #c62828; }
-            .message.empty { background: #f4f6f9; color: #666; }
-
-            table { width: 100%; border-collapse: collapse; min-width: 460px; }
-
-            th {
-                padding: 12px;
-                text-align: left;
-                background: #f4f6f9;
-                color: #1a1a2e;
-                font-size: 13px;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-
-            td {
-                padding: 12px;
-                border-bottom: 1px solid #f0f0f0;
-                color: #444;
-                font-size: 14px;
-            }
-
-            tr:last-child td { border-bottom: none; }
-            tr:hover td { background: #f9f9fc; }
-
-            button {
-                background: #1565c0;
-                color: white;
-                border: none;
-                padding: 14px 24px;
-                border-radius: 8px;
-                font-size: 16px;
-                font-weight: 600;
-                cursor: pointer;
-                margin-top: 16px;
-                width: 100%;
-                transition: background 0.2s;
-            }
-
-            button:hover { background: #1976d2; }
-
-            @media (min-width: 480px) {
-                .container { padding: 28px; }
-                button { width: auto; }
-            }
-
-            @media (min-width: 960px) {
-                .container { margin: 24px auto; }
-            }
-        </style>
+        <link rel="stylesheet" href="/style.css">
     </head>
     <body>
         <div class="header">
@@ -131,19 +16,19 @@
             <div class="stat">
                 <div class="stat-card">
                     <h3>Doanh thu</h3>
-                    <p class="doanh-thu" id="tong-doanh-thu">...</p>
+                    <p class="stat-value green" id="tong-doanh-thu">...</p>
                 </div>
                 <div class="stat-card">
                     <h3>Chi phí</h3>
-                    <p class="chi-phi" id="tong-chi-phi">...</p>
+                    <p class="stat-value red" id="tong-chi-phi">...</p>
                 </div>
                 <div class="stat-card">
                     <h3>Lợi nhuận</h3>
-                    <p class="loi-nhuan" id="tong-loi-nhuan">...</p>
+                    <p class="stat-value blue" id="tong-loi-nhuan">...</p>
                 </div>
                 <div class="stat-card">
                     <h3>Tổng lương</h3>
-                    <p class="luong" id="tong-luong">...</p>
+                    <p class="stat-value orange" id="tong-luong">...</p>
                 </div>
             </div>
             <div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
@@ -172,7 +57,7 @@
                 </tbody>
             </table>
             <div id="status-message" hidden></div>
-            <button onclick="logout()">Đăng xuất</button>
+            <button class="btn" onclick="logout()">Đăng xuất</button>
             <button class = "btn" onclick="window.location.href='driver.html'">👥 Tài xế</button>
             
         </div>
