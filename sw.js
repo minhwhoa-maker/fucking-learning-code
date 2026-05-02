@@ -1,19 +1,7 @@
 const CACHE_NAME = 'van-tai-v1';
-const ASSETS = [
-  '/bai10.html',
-  '/owner-dashboard.html',
-  '/driver-page.html',
-  '/drivers.html',
-  '/vehicles.html',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
-];
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
-  );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
@@ -25,7 +13,14 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(e.request).then(cached => {
+      return cached || fetch(e.request).then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        return response;
+      });
+    })
   );
 });
