@@ -35,6 +35,12 @@
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM
 
 ## Current status
+- Bài 28: Redesign bai10.html — landing page kiểu mobile-first — hoàn thành
+  - Layout mới: hero (truck animation) + stats-row + features list + CTA
+  - `body.login-page` override base body từ style.css; `<style>` block riêng ~220 dòng cho login-only components
+  - `loadStats()` công khai: hiển thị tổng doanh thu / số chuyến / số tài xế trên landing (RLS disabled mới chạy được)
+  - Đồng bộ paths relative (`manifest.json`, `style.css`, `sw.js`) như các file khác
+  - Phục hồi error handling Bài 27: `checkUserRole` throw khi lỗi, `redirectByRole` try/catch + toast, `checkUser` xử lý error từ `getSession()`, fallback `full_name || email`
 - Bài 27: Hardening — security + accessibility + responsive — hoàn thành
   - **JS refactor**: thay `innerHTML` template literals bằng `createElement`/`textContent` (chống XSS)
     - vehicles.html: helper `addCell`, `createButton`, `setVehicleMessage`
@@ -70,13 +76,14 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZ
 - Bài 25: Đồng bộ style toàn app (font, màu, border-radius, shadow) ✓
 - Bài 26: Tách shared style.css, xóa style blocks, đổi class names ✓
 - Bài 27: Security hardening (chống XSS), validation, table responsive, fix style.css ✓
+- Bài 28: Redesign bai10 landing (hero + stats + features + CTA), public loadStats ✓
 
 ## Supabase Storage
 - Bucket: receipts (cần bật Public access để getPublicUrl hoạt động)
 - Path format: {userId}/{timestamp}.{ext}
 
 ## Notes
-- RLS disabled trên tất cả tables (cần fix sau)
+- RLS disabled trên tất cả tables (cần fix sau) — **lưu ý**: bai10 `loadStats()` query công khai, sẽ break khi bật RLS (cần policy public-read cho `trips.doanh_thu` + count `users` role=driver)
 - Anon key đừng share public
 - Mỗi lần Claude Code mới → paste file này vào đầu
 - Định dạng ngày hiển thị: dd/mm/yy (ví dụ: 01/05/26)
