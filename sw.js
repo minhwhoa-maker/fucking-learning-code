@@ -24,3 +24,16 @@ self.addEventListener('fetch', e => {
     })
   );
 });
+const CACHE_NAME = 'van-tai-v1';
+
+self.addEventListener('install', e => {
+  self.skipWaiting(); // ← cái này force activate SW mới ngay, không chờ
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim()) // ← cái này force tất cả tab dùng SW mới
+  );
+});
