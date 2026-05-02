@@ -1,0 +1,73 @@
+// Fleet App — shared utilities
+// Yêu cầu: load supabase-js trước file này
+
+const SUPABASE_URL = 'https://icwmtqfpbefntfxboofr.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM'
+
+function createSb() {
+    return supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+}
+
+// === Formatting ===
+function formatMoney(n) {
+    const amount = Number(n)
+    return (Number.isFinite(amount) ? amount : 0).toLocaleString('vi-VN') + ' đ'
+}
+
+function formatDate(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return ''
+    const [y, m, d] = dateStr.split('-')
+    if (!y || !m || !d) return dateStr
+    return `${d}/${m}/${y.slice(2)}`
+}
+
+// === Auth ===
+async function getUserRole(sb, email) {
+    const { data, error } = await sb
+        .from('users')
+        .select('role')
+        .eq('email', email)
+        .maybeSingle()
+    if (error) throw new Error(error.message)
+    return data?.role ?? null
+}
+
+async function getUserProfile(sb, email) {
+    const { data, error } = await sb
+        .from('users')
+        .select('id, role')
+        .eq('email', email)
+        .maybeSingle()
+    if (error) throw new Error(error.message)
+    return data
+}
+
+// Bảo vệ trang admin: kiểm tra session + role, redirect bai10 nếu không khớp.
+// Trả về { user, profile } hoặc null.
+async function requireRole(sb, requiredRole) {
+    const { data, error } = await sb.auth.getSession()
+    if (error || !data?.session?.user?.email) {
+        window.location.href = 'bai10.html'
+        return null
+    }
+    try {
+        const profile = await getUserProfile(sb, data.session.user.email)
+        if (profile?.role !== requiredRole) {
+            window.location.href = 'bai10.html'
+            return null
+        }
+        return { user: data.session.user, profile }
+    } catch {
+        window.location.href = 'bai10.html'
+        return null
+    }
+}
+
+// Tự động redirect về bai10 khi user logout từ tab khác.
+function setupLogoutListener(sb) {
+    sb.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT' || !session) {
+            window.location.href = 'bai10.html'
+        }
+    })
+}

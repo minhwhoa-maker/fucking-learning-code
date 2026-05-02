@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="shared.js"></script>
 </head>
 <body>
     <div class="header">
@@ -15,8 +16,8 @@
         <div style="display: flex; gap: 10px">
             <button class="btn" onclick="window.location.href='owner-dashboard.html'">← Dashboard</button>
             <button class="btn btn-logout" onclick="logout()">Logout</button>
-            <button class="btn" style="background:#27ae60" onclick="exportExcel()">📊 Excel</button>
-            <button class="btn" style="background:#8e44ad" onclick="exportPDF()">🖨️ PDF</button>
+            <button class="btn btn-success" onclick="exportExcel()">📊 Excel</button>
+            <button class="btn btn-purple" onclick="exportPDF()">🖨️ PDF</button>
         </div>
     </div>
     <div class="container">
@@ -36,7 +37,7 @@
                 <label style="font-weight: bold">Tháng</label>
                 <input type="month" id="filter-month">
                 <button class="btn" onclick="loadDrivers()">Lọc</button>
-                <button class="btn" style="background: #888" onclick="clearFilter()">Tất cả</button>
+                <button class="btn btn-gray" onclick="clearFilter()">Tất cả</button>
             </div>
             <div class="table-scroll wide">
                 <table>
@@ -60,16 +61,7 @@
         </div>
     </div>
     <script>
-        const { createClient } = supabase
-        const sb = createClient(
-            'https://icwmtqfpbefntfxboofr.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM'
-        )
-
-        function formatMoney(n) {
-            const amount = Number(n)
-            return (Number.isFinite(amount) ? amount : 0).toLocaleString('vi-VN') + ' đ'
-        }
+        const sb = createSb()
 
         function addCell(row, text) {
             const cell = document.createElement('td')
@@ -87,37 +79,6 @@
             cell.textContent = message
             row.appendChild(cell)
             tbody.appendChild(row)
-        }
-
-        async function getUserRole(email) {
-            const { data, error } = await sb
-                .from('users')
-                .select('role')
-                .eq('email', email)
-                .maybeSingle()
-            if (error) throw new Error(error.message)
-            return data?.role ?? null
-        }
-
-        async function checkAccess() {
-            const { data, error } = await sb.auth.getSession()
-            if (error || !data?.session?.user?.email) {
-                window.location.href = 'bai10.html'
-                return false
-            }
-
-            try {
-                const role = await getUserRole(data.session.user.email)
-                if (role !== 'owner') {
-                    window.location.href = 'bai10.html'
-                    return false
-                }
-            } catch {
-                window.location.href = 'bai10.html'
-                return false
-            }
-
-            return true
         }
 
         async function addDriver() {
@@ -216,8 +177,7 @@
                     actions.style.flexWrap = 'wrap'
 
                     const advanceButton = document.createElement('button')
-                    advanceButton.className = 'btn'
-                    advanceButton.style.background = '#27ae60'
+                    advanceButton.className = 'btn btn-success'
                     advanceButton.style.padding = '6px 12px'
                     advanceButton.textContent = '+ Tạm ứng'
                     advanceButton.addEventListener('click', () => addAdvance(d.id, d.full_name || 'tài xế'))
@@ -245,6 +205,20 @@
             if (!month) {
                 alert('Vui lòng chọn tháng trước!')
                 return
+            }
+
+            const { data: existing, error: checkError } = await sb
+                .from('tam_ung_thang')
+                .select('id, so_tien')
+                .eq('tai_xe_id', driverId)
+                .eq('thang', month)
+            if (checkError) {
+                alert('Lỗi kiểm tra tạm ứng: ' + checkError.message)
+                return
+            }
+            if (existing && existing.length > 0) {
+                const total = existing.reduce((s, r) => s + (Number(r.so_tien) || 0), 0)
+                if (!confirm(`${driverName} đã có ${existing.length} tạm ứng tháng ${month} (tổng ${total.toLocaleString('vi-VN')} đ). Thêm nữa?`)) return
             }
 
             const amount = prompt(`Nhập số tiền tạm ứng cho ${driverName} (tháng ${month}):`)
@@ -311,10 +285,11 @@
 
         async function initPage() {
             setDriverMessage('Đang tải ...')
-            const allowed = await checkAccess()
-            if (allowed) loadDrivers()
+            const auth = await requireRole(sb, 'owner')
+            if (auth) loadDrivers()
         }
 
+        setupLogoutListener(sb)
         initPage()
     </script>
 </body>

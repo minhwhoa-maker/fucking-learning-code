@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý Vận tải</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="shared.js"></script>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     <style>
@@ -316,11 +317,7 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        const {createClient} = supabase;
-        const sb = createClient(
-            'https://icwmtqfpbefntfxboofr.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM'
-        );
+        const sb = createSb();
 
         function showToast(msg, type = '') {
             const toast = document.getElementById('toast');
@@ -341,7 +338,7 @@
             loadStats();
         }
 
-        function formatMoney(n) {
+        function formatStatNumber(n) {
             if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
             if (n >= 1e6) return Math.round(n / 1e6) + 'M';
             if (n >= 1e3) return Math.round(n / 1e3) + 'K';
@@ -353,7 +350,7 @@
                 // Tổng doanh thu
                 const { data: trips } = await sb.from('trips').select('doanh_thu');
                 const revenue = (trips || []).reduce((s, t) => s + (t.doanh_thu || 0), 0);
-                document.getElementById('stat-revenue').textContent = formatMoney(revenue) + 'đ';
+                document.getElementById('stat-revenue').textContent = formatStatNumber(revenue) + 'đ';
                 document.getElementById('stat-trips').textContent = (trips || []).length;
 
                 // Số tài xế
@@ -370,7 +367,7 @@
             document.getElementById('btn-login').disabled = true;
             const {error} = await sb.auth.signInWithOAuth({
                 provider: 'google',
-                options: { redirectTo: 'https://fucking-learning-code.vercel.app/bai10.html' }
+                options: { redirectTo: window.location.origin + '/bai10.html' }
             });
             if (error) {
                 showToast('Đăng nhập thất bại: ' + error.message, 'error');

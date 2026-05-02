@@ -7,10 +7,16 @@
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <link rel="manifest" href="manifest.json">
         <link rel="stylesheet" href="style.css">
+        <script src="shared.js"></script>
     </head>
     <body>
         <div class="header">
             <h2>👑 Owner Dashboard</h2>
+            <div style="display:flex; gap: 10px;">
+                <button class="btn" onclick="window.location.href='driver.html'">👥 Tài xế</button>
+                <button class="btn" onclick="window.location.href='vehicles.html'">🚛 Xe</button>
+                <button class="btn btn-logout" onclick="logout()">Đăng xuất</button>
+            </div>
         </div>
         <div class="container">
             <div class="stat">
@@ -31,11 +37,11 @@
                     <p class="stat-value orange" id="tong-luong">...</p>
                 </div>
             </div>
-            <div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
-                <label style="font-weight: bold">Tháng</label>
-                <input type="month" id="filter-month" style="padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px;">
-                <button onclick="loadTrips()" style="background: #1565c0; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Lọc</button>
-                <button onclick="clearFilter()" style="background: gray; border: 1px solid #ddd; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Tất cả</button>
+            <div class="filter-bar">
+                <label>Tháng</label>
+                <input type="month" id="filter-month">
+                <button class="btn" onclick="loadTrips()">Lọc</button>
+                <button class="btn btn-gray" onclick="clearFilter()">Tất cả</button>
             </div>
             <div class="table-scroll wide">
                 <table>
@@ -59,13 +65,9 @@
                 </table>
             </div>
             <div id="status-message" hidden></div>
-            <button class="btn" onclick="logout()">Đăng xuất</button>
-            <button class = "btn" onclick="window.location.href='driver.html'">👥 Tài xế</button>
-            
         </div>
         <script>
-            const { createClient } = supabase
-            const sb = createClient('https://icwmtqfpbefntfxboofr.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM')
+            const sb = createSb()
             const statusMessage = document.getElementById('status-message')
             let tripsChannel = null
 
@@ -76,10 +78,10 @@
 
             function setTotals(totalDT = 0, totalCP = 0, totalluong = 0) {
                 const totalLN = totalDT - totalCP
-                document.getElementById('tong-doanh-thu').textContent = formatCurrency(totalDT)
-                document.getElementById('tong-chi-phi').textContent = formatCurrency(totalCP)
-                document.getElementById('tong-loi-nhuan').textContent = formatCurrency(totalLN)
-                document.getElementById('tong-luong').textContent = formatCurrency(totalluong)
+                document.getElementById('tong-doanh-thu').textContent = formatMoney(totalDT)
+                document.getElementById('tong-chi-phi').textContent = formatMoney(totalCP)
+                document.getElementById('tong-loi-nhuan').textContent = formatMoney(totalLN)
+                document.getElementById('tong-luong').textContent = formatMoney(totalluong)
             }
 
             function showStatus(message, type) {
@@ -92,30 +94,6 @@
                 statusMessage.hidden = true
                 statusMessage.className = ''
                 statusMessage.textContent = ''
-            }
-
-            function formatCurrency(n) {
-                return toNumber(n).toLocaleString('vi-VN') + ' đ'
-            }
-
-            function formatDate(dateStr) {
-                if (!dateStr) return ''
-                const [y, m, d] = dateStr.split('-')
-                return `${d}/${m}/${y.slice(2)}`
-            }
-
-            async function getUserRole(email) {
-                const { data, error } = await sb
-                    .from('users')
-                    .select('role')
-                    .eq('email', email)
-                    .maybeSingle()
-
-                if (error) {
-                    throw new Error(error.message)
-                }
-
-                return data?.role ?? null
             }
 
             function renderTrips(trips) {
@@ -134,13 +112,13 @@
                     const values = [
                         formatDate(trip.ngay),
                         trip.tuyen_duong ?? '',
-                        formatCurrency(doanhThu),
-                        formatCurrency(chiPhi),
-                        formatCurrency(loiNhuan),
-                        formatCurrency(toNumber(trip.luong_chuyen)),
-                        formatCurrency(tamUng),
-                        formatCurrency(hoanUng),
-                        formatCurrency(conLai)
+                        formatMoney(doanhThu),
+                        formatMoney(chiPhi),
+                        formatMoney(loiNhuan),
+                        formatMoney(toNumber(trip.luong_chuyen)),
+                        formatMoney(tamUng),
+                        formatMoney(hoanUng),
+                        formatMoney(conLai)
                     ]
 
                     values.forEach((value, index) => {
@@ -221,33 +199,12 @@
                 loadTrips()
             }
 
-            async function checkAccess() {
-                const { data: { session }, error } = await sb.auth.getSession()
-                if (error || !session?.user?.email) {
-                    window.location.href = 'bai10.html'
-                    return false
-                }
-
-                try {
-                    const role = await getUserRole(session.user.email)
-                    if (role !== 'owner') {
-                        window.location.href = 'bai10.html'
-                        return false
-                    }
-                } catch {
-                    window.location.href = 'bai10.html'
-                    return false
-                }
-
-                return true
-            }
-
             async function initPage() {
                 try {
                     setTotals(0, 0, 0)
                     hideStatus()
-                    const allowed = await checkAccess()
-                    if (!allowed) return
+                    const auth = await requireRole(sb, 'owner')
+                    if (!auth) return
                     await loadTrips()
                     tripsChannel = sb.channel('trips-changes')
                         .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, payload => {
@@ -268,6 +225,7 @@
                 window.location.href = 'bai10.html'
             }
 
+            setupLogoutListener(sb)
             initPage()
             window.addEventListener('beforeunload', () => {
                 if (tripsChannel) sb.removeChannel(tripsChannel)

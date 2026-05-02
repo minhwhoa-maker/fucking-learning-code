@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
+    <script src="shared.js"></script>
 </head>
 <body>
     <div class="header">
@@ -51,11 +52,7 @@
         </div>
     </div>
     <script>
-        const { createClient } = supabase
-        const sb = createClient(
-            'https://icwmtqfpbefntfxboofr.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljd210cWZwYmVmbnRmeGJvb2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mzg3NzgsImV4cCI6MjA5MjUxNDc3OH0.N1gsPt4eZav2LL2XDttqlsAB06b1UzXb4bFTMi3K8NM'
-        )
+        const sb = createSb()
         let drivers = []
 
         const statusLabels = {
@@ -96,42 +93,6 @@
             cell.textContent = message
             row.appendChild(cell)
             tbody.appendChild(row)
-        }
-
-        function formatMoney(n) {
-            const amount = Number(n)
-            return Number.isFinite(amount) ? amount.toLocaleString('vi-VN') + ' ₫' : '-'
-        }
-
-        async function getUserRole(email) {
-            const { data, error } = await sb
-                .from('users')
-                .select('role')
-                .eq('email', email)
-                .maybeSingle()
-            if (error) throw new Error(error.message)
-            return data?.role ?? null
-        }
-
-        async function checkAccess() {
-            const { data, error } = await sb.auth.getSession()
-            if (error || !data?.session?.user?.email) {
-                window.location.href = 'bai10.html'
-                return false
-            }
-
-            try {
-                const role = await getUserRole(data.session.user.email)
-                if (role !== 'owner') {
-                    window.location.href = 'bai10.html'
-                    return false
-                }
-            } catch {
-                window.location.href = 'bai10.html'
-                return false
-            }
-
-            return true
         }
 
         async function loadDrivers() {
@@ -324,13 +285,6 @@
             }
         }
 
-        function fmtDate(iso) {
-            if (!iso || typeof iso !== 'string') return ''
-            const [y, m, d] = iso.split('-')
-            if (!y || !m || !d) return iso
-            return d + '/' + m + '/' + y.slice(2)
-        }
-
         function toggleMaintenance(xeId) {
             const row = document.getElementById('maint-row-' + xeId)
             if (!row) return
@@ -385,7 +339,7 @@
             const tbody = document.createElement('tbody')
             data.forEach(m => {
                 const row = document.createElement('tr')
-                addCell(row, fmtDate(m.ngay))
+                addCell(row, formatDate(m.ngay))
                 addCell(row, loaiLabels[m.loai] || m.loai || '-')
                 addCell(row, m.mo_ta || '-')
                 addCell(row, m.chi_phi === null || m.chi_phi === undefined ? '-' : formatMoney(m.chi_phi))
@@ -445,11 +399,12 @@
 
         async function init() {
             setVehicleMessage('Đang tải ...')
-            const allowed = await checkAccess()
-            if (!allowed) return
+            const auth = await requireRole(sb, 'owner')
+            if (!auth) return
             await loadDrivers()
             await loadVehicles()
         }
+        setupLogoutListener(sb)
         init()
     </script>
 </body>
