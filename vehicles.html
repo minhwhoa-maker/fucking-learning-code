@@ -52,6 +52,12 @@
         </div>
     </div>
     <script>
+        function showToast(msg, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => toast.className = 'toast', 3000);
+        }
         const sb = createSb()
         let drivers = []
 
@@ -117,7 +123,7 @@
             } catch (err) {
                 console.error('Load drivers error:', err)
                 drivers = []
-                alert('Không thể tải danh sách tài xế: ' + err.message)
+                showToast('Không thể tải danh sách tài xế: ' + err.message, 'error')
             }
         }
 
@@ -129,11 +135,11 @@
             const tai_xe_id = document.getElementById('new-tai-xe').value || null
 
             if (!bien_so) {
-                alert('Vui lòng nhập biển số!')
+                showToast('Vui lòng nhập biển số!', 'error')
                 return
             }
             if (namRaw !== '' && !Number.isFinite(nam_sx)) {
-                alert('Năm sản xuất không hợp lệ!')
+                showToast('Năm sản xuất không hợp lệ!', 'error')
                 return
             }
 
@@ -145,7 +151,7 @@
                 trang_thai: 'hoat_dong'
             })
 
-            if (error) alert('Lỗi: ' + error.message)
+            if (error) showToast('Lỗi: ' + error.message, 'error')
             else {
                 document.getElementById('new-bien-so').value = ''
                 document.getElementById('new-loai').value = ''
@@ -164,14 +170,14 @@
             const newStatus = statusMap[currentStatus] || 'hoat_dong'
 
             const { error } = await sb.from('xe').update({ trang_thai: newStatus }).eq('id', id)
-            if (error) alert('Lỗi: ' + error.message)
+            if (error) showToast('Lỗi: ' + error.message, 'error')
             else loadVehicles()
         }
 
         async function deleteVehicle(id, bien_so) {
             if (!confirm('Xóa xe ' + bien_so + '?')) return
             const { error } = await sb.from('xe').delete().eq('id', id)
-            if (error) alert('Lỗi: ' + error.message)
+            if (error) showToast('Lỗi: ' + error.message, 'error')
             else loadVehicles()
         }
 
@@ -281,7 +287,7 @@
             } catch (err) {
                 console.error('Load vehicles error:', err)
                 setVehicleMessage('Không thể tải dữ liệu xe')
-                alert('Lỗi: ' + err.message)
+                showToast('Lỗi: ' + err.message, 'error')
             }
         }
 
@@ -313,7 +319,7 @@
             const { data, error } = await sb.from('bao_duong').select('*').eq('xe_id', xeId).order('ngay', { ascending: false })
             if (error) {
                 setMaintenanceMessage(container, 'Không thể tải lịch sử bảo dưỡng')
-                alert('Lỗi: ' + error.message)
+                showToast('Lỗi: ' + error.message, 'error')
                 return
             }
 
@@ -366,17 +372,17 @@
             const chi_phi = chiPhiRaw === '' ? null : Number(chiPhiRaw)
 
             if (!ngay) {
-                alert('Vui lòng chọn ngày!')
+                showToast('Vui lòng chọn ngày!', 'error')
                 return
             }
             if (chiPhiRaw !== '' && (!Number.isFinite(chi_phi) || chi_phi < 0)) {
-                alert('Chi phí không hợp lệ!')
+                showToast('Chi phí không hợp lệ!', 'error')
                 return
             }
 
             const { error } = await sb.from('bao_duong').insert({ xe_id: xeId, ngay, loai, mo_ta, chi_phi })
             if (error) {
-                alert('Lỗi: ' + error.message)
+                showToast('Lỗi: ' + error.message, 'error')
                 return
             }
 
@@ -388,7 +394,7 @@
         async function deleteMaintenance(id, xeId) {
             if (!confirm('Xóa bản ghi bảo dưỡng này?')) return
             const { error } = await sb.from('bao_duong').delete().eq('id', id)
-            if (error) alert('Lỗi: ' + error.message)
+            if (error) showToast('Lỗi: ' + error.message, 'error')
             else loadMaintenance(xeId)
         }
 
@@ -407,5 +413,6 @@
         setupLogoutListener(sb)
         init()
     </script>
+    <div class="toast" id="toast"></div>
 </body>
 </html>
