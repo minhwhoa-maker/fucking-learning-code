@@ -74,10 +74,7 @@
                     <input type= "number" id = "hoan_ung">
                 </div>
                 <button class="btn btn-full" onclick="submitTrip()">Nhập Chuyến</button>
-                <div class = "msg" id="msg"></div>
-
-
-            </div>
+                
             <div class ="card">
                 <h3> Chuyến của tôi</h3>
                 <div class="table-scroll">
@@ -96,157 +93,163 @@
             </div>
         </div>
         <script>
-            function showToast(msg, type = '') {
-                const toast = document.getElementById('toast');
-                toast.textContent = msg;
-                toast.className = 'toast show ' + type;
-                setTimeout(() => toast.className = 'toast', 3000);
+    function showToast(msg, type = '') {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.className = 'toast show ' + type;
+        setTimeout(() => toast.className = 'toast', 3000);
+    }
+
+    const sb = createSb();
+    let currentUser = null;
+    let currentProfileId = null;
+    let selectedReceiptFile = null;
+
+    function previewReceipt(input) {
+        if (!input.files || !input.files[0]) return;
+        selectedReceiptFile = input.files[0];
+        const reader = new FileReader();
+        reader.onload = e => {
+            document.getElementById('receipt-img').src = e.target.result;
+            document.getElementById('receipt-preview').style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+
+    function removeReceipt() {
+        document.getElementById('receipt-camera').value = '';
+        document.getElementById('receipt-gallery').value = '';
+        selectedReceiptFile = null;
+        document.getElementById('receipt-img').src = '';
+        document.getElementById('receipt-preview').style.display = 'none';
+    }
+
+    async function uploadReceipt(file, userId) {
+        const ext = (file.name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '') || 'jpg';
+        const path = `${userId}/${Date.now()}.${ext}`;
+        const { error } = await sb.storage.from('receipts').upload(path, file, { upsert: false });
+        if (error) throw error;
+        const { data } = sb.storage.from('receipts').getPublicUrl(path);
+        return data.publicUrl;
+    }
+
+    function resetForm() {
+        ['ngay', 'tuyen_duong', 'doanh_thu', 'chi_phi', 'ghi_chu',
+         'luong_chuyen', 'tam_ung', 'hoan_ung'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+        removeReceipt();
+    }
+
+    async function submitTrip() {
+        if (!currentUser || !currentProfileId) {
+            showToast('Bạn cần đăng nhập trước khi nhập chuyến', 'error');
+            return;
+        }
+        const ngay = document.getElementById('ngay').value;
+        const tuyen_duong = document.getElementById('tuyen_duong').value;
+        const doanhThuValue = document.getElementById('doanh_thu').value;
+        const chiPhiValue = document.getElementById('chi_phi').value;
+        const doanh_thu = Number(doanhThuValue);
+        const chi_phi = Number(chiPhiValue);
+        const ghi_chu = document.getElementById('ghi_chu').value;
+        const luong_chuyen = Number(document.getElementById('luong_chuyen').value) || 0;
+        const tam_ung = Number(document.getElementById('tam_ung').value) || 0;
+        const hoan_ung = Number(document.getElementById('hoan_ung').value) || 0;
+
+        if (!ngay || !tuyen_duong || doanhThuValue === '' || chiPhiValue === ''
+            || !Number.isFinite(doanh_thu) || !Number.isFinite(chi_phi)) {
+            showToast('Bạn chưa nhập đủ thông tin', 'error');
+            return;
+        }
+
+        let anh_hoa_don = null;
+        if (selectedReceiptFile) {
+            try {
+                showToast('Đang upload ảnh...');
+                anh_hoa_don = await uploadReceipt(selectedReceiptFile, currentProfileId);
+            } catch (e) {
+                showToast('Lỗi upload ảnh: ' + e.message, 'error');
+                return;
             }
-            const sb = createSb()
-            let currentUser = null
-            let currentProfileId = null
-            let selectedReceiptFile = null
+        }
 
-            function previewReceipt(input) {
-                if (!input.files || !input.files[0]) return
-                selectedReceiptFile = input.files[0]
-                const reader = new FileReader()
-                reader.onload = e => {
-                    document.getElementById('receipt-img').src = e.target.result
-                    document.getElementById('receipt-preview').style.display = 'block'
-                }
-                reader.readAsDataURL(input.files[0])
-            }
+        const { error } = await sb.from('trips').insert({
+            ngay, tuyen_duong, doanh_thu, chi_phi, ghi_chu,
+            tai_xe_id: currentProfileId,
+            luong_chuyen, tam_ung, hoan_ung, anh_hoa_don,
+        });
 
-            function removeReceipt() {
-                document.getElementById('receipt-camera').value = ''
-                document.getElementById('receipt-gallery').value = ''
-                selectedReceiptFile = null
-                document.getElementById('receipt-img').src = ''
-                document.getElementById('receipt-preview').style.display = 'none'
-            }
+        if (error) {
+            showToast('Lỗi: ' + error.message, 'error');
+        } else {
+            showToast('Nhập chuyến thành công', 'success');
+            resetForm();
+            loadMyTrips();
+        }
+    }
 
-            async function uploadReceipt(file, userId) {
-                const ext = (file.name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '') || 'jpg'
-                const path = `${userId}/${Date.now()}.${ext}`
-                const { error } = await sb.storage.from('receipts').upload(path, file, { upsert: false })
-                if (error) throw error
-                const { data } = sb.storage.from('receipts').getPublicUrl(path)
-                return data.publicUrl
-            }
+    async function loadMyTrips() {
+        if (!currentUser || !currentProfileId) return;
+        const { data, error } = await sb
+            .from('trips')
+            .select('*')
+            .eq('tai_xe_id', currentProfileId)
+            .order('ngay', { ascending: false });
 
-            function showMsg(text, type) {
-                const el = document.getElementById('msg')
-                el.textContent = text
-                el.className = 'msg ' + type
-                el.style.display = 'block'
-                setTimeout(() => el.style.display = 'none', 3000)
+        const tbody = document.getElementById('my-trip');
+        if (error) {
+            showToast('Không thể tải chuyến: ' + error.message, 'error');
+            return;
+        }
 
-            }
-            async function submitTrip() {
-                if (!currentUser || !currentProfileId) {
-                    showMsg('Bạn cần đăng nhập trước khi nhập chuyến', 'error')
-                    return
-                }
-                const ngay = document.getElementById('ngay').value
-                const tuyen_duong = document.getElementById('tuyen_duong').value
-                const doanhThuValue = document.getElementById('doanh_thu').value
-                const chiPhiValue = document.getElementById('chi_phi').value
-                const doanh_thu = Number(doanhThuValue)
-                const chi_phi = Number(chiPhiValue)
-                const ghi_chu = document.getElementById('ghi_chu').value
-                const luong_chuyen = Number(document.getElementById('luong_chuyen').value) || 0
-                const tam_ung = Number(document.getElementById('tam_ung').value) || 0
-                const hoan_ung = Number(document.getElementById('hoan_ung').value) || 0
-                if (!ngay || !tuyen_duong || doanhThuValue === '' || chiPhiValue === '' || !Number.isFinite(doanh_thu) || !Number.isFinite(chi_phi)) {
-                    showMsg('Bạn chưa nhập đủ thông tin', 'error')
-                    return
-                }
-                let anh_hoa_don = null
-                if (selectedReceiptFile) {
-                    try {
-                        showMsg('Đang upload ảnh...', 'success')
-                        anh_hoa_don = await uploadReceipt(selectedReceiptFile, currentProfileId)
-                    } catch (e) {
-                        showMsg('Lỗi upload ảnh: ' + e.message, 'error')
-                        return
-                    }
-                }
-                const {error} = await sb.from('trips').insert({
-                    ngay,
-                    tuyen_duong,
-                    doanh_thu,
-                    chi_phi,
-                    ghi_chu,
-                    tai_xe_id: currentProfileId,
-                    luong_chuyen: luong_chuyen,
-                    tam_ung: tam_ung,
-                    hoan_ung: hoan_ung,
-                    anh_hoa_don,
-                })
-                if (error) {
-                    showMsg('Lỗi: ' + error.message, 'error')
-                } else {
-                    showMsg('Nhập chuyến thành công', 'success')
-                    removeReceipt()
-                    loadMyTrips()
-                }
-                }
-                async function loadMyTrips() {
-                    if (!currentUser || !currentProfileId) return
-                    const {data, error} = await sb
-                    .from('trips')
-                    .select('*')
-                    .eq('tai_xe_id', currentProfileId)
-                    .order('ngay', {ascending: false})
-                const tbody = document.getElementById('my-trip')
-                if (error) {
-                    showMsg('Không thể tải chuyến: ' + error.message, 'error')
-                    return
-                }
-                if (!data || data.length === 0) {
-                    tbody.textContent = ''
-                    const row = document.createElement('tr')
-                    const cell = document.createElement('td')
-                    cell.colSpan = 3
-                    cell.textContent = 'Chưa có chuyến nào'
-                    row.appendChild(cell)
-                    tbody.appendChild(row)
-                    return
+        tbody.textContent = '';
 
-                }
-                tbody.textContent = ''
-                data.forEach(c => {
-                    const row = document.createElement('tr')
-                    const ngayCell = document.createElement('td')
-                    ngayCell.textContent = formatDate(c.ngay)
-                    const tuyenCell = document.createElement('td')
-                    tuyenCell.textContent = c.tuyen_duong || ''
-                    const doanhThuCell = document.createElement('td')
-                    doanhThuCell.textContent = formatMoney(c.doanh_thu)
-                    doanhThuCell.style.color = '#2ecc71'
-                    row.append(ngayCell, tuyenCell, doanhThuCell)
-                    tbody.appendChild(row)
-                })
-                }
-                async function logout() {
-                    await sb.auth.signOut()
-                    window.location.href = 'bai10.html'
-                }
+        if (!data || data.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 3;
+            cell.textContent = 'Chưa có chuyến nào';
+            cell.style.textAlign = 'center';
+            cell.style.color = 'var(--text-muted)';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+        }
 
-                async function initPage() {
-                    const auth = await requireRole(sb, 'driver')
-                    if (!auth) return
-                    currentUser = auth.user
-                    currentProfileId = auth.profile.id
-                    loadMyTrips()
-                }
+        data.forEach(c => {
+            const row = document.createElement('tr');
+            const ngayCell = document.createElement('td');
+            ngayCell.textContent = formatDate(c.ngay);
 
-                setupLogoutListener(sb)
-                initPage()
+            const tuyenCell = document.createElement('td');
+            tuyenCell.textContent = c.tuyen_duong || '';
 
+            const doanhThuCell = document.createElement('td');
+            doanhThuCell.textContent = formatMoney(c.doanh_thu);
+            doanhThuCell.className = 'text-success';
 
-        </script>
+            row.append(ngayCell, tuyenCell, doanhThuCell);
+            tbody.appendChild(row);
+        });
+    }
+
+    async function logout() {
+        await sb.auth.signOut();
+        window.location.href = 'bai10.html';
+    }
+
+    async function initPage() {
+        const auth = await requireRole(sb, 'driver');
+        if (!auth) return;
+        currentUser = auth.user;
+        currentProfileId = auth.profile.id;
+        loadMyTrips();
+    }
+
+    setupLogoutListener(sb);
+    initPage();
+</script>
     <div class="toast" id="toast"></div>
     </body>
 </html>

@@ -420,3 +420,8 @@ tr:hover td { background: #f9f9fc; }
     body { background: white; }
     .card { box-shadow: none; }
 }
+/* --- TEXT UTILITIES --- */
+.text-success { color: #2ecc71; }
+.text-danger  { color: #c62828; }
+.text-warning { color: #e67e22; }
+.text-primary { color: var(--primary); }
