@@ -75,8 +75,23 @@ Khi user case (b) login lần đầu, bai10 thấy email đã có → skip inser
 - Button classes: `.btn` (xanh primary), `.btn-danger/.btn-success/.btn-warning/.btn-purple/.btn-gray/.btn-logout/.btn-full/.btn-sm`. **Không dùng inline `style="background:..."`** — đã có class.
 - Stat values trong owner-dashboard: `.stat-value.green/red/blue/orange`.
 - Bảng nhiều cột bọc trong `<div class="table-scroll wide">` để mobile scroll ngang.
-- Status messages: dùng class `.message.success/.error/.empty` (style.css), JS gán qua `className`.
 - All asset links dùng **relative path** (`manifest.json`, `style.css`, `sw.js`, `shared.js`) — không có leading `/`.
+
+### Notification pattern (showToast)
+Tất cả page admin/driver dùng `showToast()` cho user feedback. Mỗi file tự định nghĩa hàm này ở đầu `<script>` (không phải trong `shared.js`) và cần `<div class="toast" id="toast"></div>` trước `</body>`:
+
+```js
+function showToast(msg, type = '') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.className = 'toast', 3000);
+}
+```
+
+- Error → `showToast('...', 'error')`, success → `showToast('...', 'success')`, neutral → `showToast('...')`
+- **Ngoại lệ**: `owner-dashboard.html` dùng thêm `showStatus()` (`.message.success/.error/.empty`) cho status area tĩnh trong table container; `driver.html` dùng `#add-msg` element riêng cho "Thêm tài xế thành công" (không phải toast).
+- `.toast` CSS đã có trong `style.css`.
 
 ### Realtime subscriptions
 `owner-dashboard.html` subscribe channel `trips-changes` cho table `trips`. Channel được lưu trong `tripsChannel` và cleanup ở `beforeunload` qua `sb.removeChannel(tripsChannel)`.
@@ -114,6 +129,7 @@ bao_duong      (id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)    -- loai: '
 
 Các bài học gần nhất (chi tiết git log):
 
+- Bài 30 (2026-05-03): Thay toàn bộ `alert()` bằng `showToast()` trong 4 page (vehicles, driver, owner-dashboard, driver-page). Refactor `driver-page.html` — bỏ `showMsg()`/`#msg` div, thêm `resetForm()`, dùng `showToast()` nhất quán.
 - Bài 29 (2026-05-03): Tạo `shared.js`, fix lệch ID Auth/users, đồng bộ format tiền tệ, thêm nav `vehicles.html` ở header owner-dashboard, `setupLogoutListener` cho mọi admin page.
 - Bài 28: Redesign `bai10.html` thành landing mobile-first (hero + stats public + features + CTA).
 - Bài 27: Security hardening — chuyển từ `innerHTML` template literal sang `createElement`/`textContent` (chống XSS), validation `Number.isFinite`, error handling toàn diện, `.table-scroll` wrapper cho mobile.
