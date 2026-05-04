@@ -15,10 +15,10 @@ function formatMoney(n) {
 }
 
 function formatDate(dateStr) {
-    if (!dateStr || typeof dateStr !== 'string') return ''
-    const [y, m, d] = dateStr.split('-')
-    if (!y || !m || !d) return dateStr
-    return `${d}/${m}/${y.slice(2)}`
+    if (!dateStr) return ''
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return ''
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(2)}`
 }
 
 // === Auth ===

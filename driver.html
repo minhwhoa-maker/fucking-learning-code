@@ -140,12 +140,12 @@
                     return
                 }
 
-                let tripsQuery = sb.from('trips').select('tai_xe_id, luong_chuyen, ngay')
+                let tripsQuery = sb.from('trips').select('tai_xe_id, luong_chuyen, ngay_bat_dau')
                 if (month) {
                     const start = month + '-01'
                     const end = new Date(month + '-01')
                     end.setMonth(end.getMonth() + 1)
-                    tripsQuery = tripsQuery.gte('ngay', start).lt('ngay', end.toISOString().split('T')[0])
+                    tripsQuery = tripsQuery.gte('ngay_bat_dau', start + 'T00:00:00').lt('ngay_bat_dau', end.toISOString().split('T')[0] + 'T00:00:00')
                 }
 
                 const { data: trips, error: tripsError } = await tripsQuery

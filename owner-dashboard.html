@@ -116,7 +116,7 @@
                     const conLai = tamUng - hoanUng
 
                     const values = [
-                        formatDate(trip.ngay),
+                        formatDate(trip.ngay_bat_dau),
                         trip.tuyen_duong ?? '',
                         formatMoney(doanhThu),
                         formatMoney(chiPhi),
@@ -166,14 +166,14 @@
             }
 
             async function loadTrips() {
-                let query = sb.from('trips').select('*').order('ngay', { ascending: false })
+                let query = sb.from('trips').select('*').order('ngay_bat_dau', { ascending: false })
                 const month = document.getElementById('filter-month').value
                 if (month) {
                     const start = month + '-01'
                     const end = new Date(month + '-01')
                     end.setMonth(end.getMonth() + 1)
                     const endStr = end.toISOString().split('T')[0]
-                    query = query.gte('ngay', start).lt('ngay', endStr)
+                    query = query.gte('ngay_bat_dau', start + 'T00:00:00').lt('ngay_bat_dau', endStr + 'T00:00:00')
                 }
 
                 const { data, error } = await query
