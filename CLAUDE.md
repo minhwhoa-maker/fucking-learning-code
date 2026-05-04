@@ -28,7 +28,7 @@ Không có build step, không có test runner, không có lint. Quy trình:
 ### Page roles
 - `bai10.html` — landing page + Google OAuth + role redirect. Có `<style>` block riêng (~220 dòng) cho hero/stats/features layout (KHÔNG dùng `.card` chuẩn).
 - `owner-dashboard.html` — owner xem báo cáo trips, filter tháng, realtime subscribe `trips`. Header có nav đến driver/vehicles.
-- `driver-page.html` — driver nhập chuyến, upload ảnh hóa đơn (camera + gallery), xem chuyến của mình.
+- `driver-page.html` — driver quản lý chuyến theo flow mới: 2 tab ("Đang chạy" / "Hoàn thành"), tạo chuyến → thêm nhiều chi phí phát sinh → xác nhận hoàn thành.
 - `driver.html` — owner quản lý tài xế, tính lương theo tháng, export Excel/PDF.
 - `vehicles.html` — owner quản lý xe + bảo dưỡng inline.
 - `style.css` — design system shared, dùng CSS variables.
@@ -39,13 +39,15 @@ Không có build step, không có test runner, không có lint. Quy trình:
 ```
 createSb()              → tạo Supabase client với URL+anon key built-in
 formatMoney(n)          → "1.234.567 đ" (vi-VN locale + đ ký tự)
-formatDate("YYYY-MM-DD") → "DD/MM/YY"
+formatDate(timestamptz) → "HH:MM - DD/MM/YY" (nhận ISO string hoặc timestamptz từ Supabase)
 getUserRole(sb, email)  → role string hoặc null
 getUserProfile(sb, email) → { id, role } hoặc null
 requireRole(sb, role)   → đảm bảo session + role khớp; redirect bai10 nếu không.
                           Trả { user, profile } hoặc null.
 setupLogoutListener(sb) → tự redirect bai10 khi logout từ tab khác.
 ```
+
+> **Lưu ý**: `shared.js` hiện có 2 định nghĩa `formatDate` — định nghĩa thứ hai (dòng 75) ghi đè định nghĩa đầu (dòng 17, dead code). Nếu sửa `formatDate`, chỉ sửa định nghĩa thứ hai.
 
 Mỗi page admin (driver/vehicles/owner-dashboard) bắt đầu với:
 ```js
@@ -71,8 +73,10 @@ Khi user case (b) login lần đầu, bai10 thấy email đã có → skip inser
 `currentUser.id` (Auth UUID) chỉ dùng cho session check, không leak vào DB.
 
 ### CSS conventions
-- CSS variables ở `:root` của `style.css`: `--primary #1565c0`, `--danger #e74c3c`, `--success #27ae60`, `--warning #e67e22`, `--bg #f0f2f5`, `--shadow`, `--radius 12px`, `--radius-sm 8px`.
+- CSS variables ở `:root` của `style.css`: `--primary #1565c0`, `--danger #e74c3c`, `--success #27ae60`, `--warning #e67e22`, `--bg #f0f2f5`, `--border #e0e0e0`, `--text-muted #888`, `--shadow`, `--radius 12px`, `--radius-sm 8px`.
 - Button classes: `.btn` (xanh primary), `.btn-danger/.btn-success/.btn-warning/.btn-purple/.btn-gray/.btn-logout/.btn-full/.btn-sm`. **Không dùng inline `style="background:..."`** — đã có class.
+- `.form-group input` được style sẵn. `.form-group select` **không** được style — cần inline style: `width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;color:#1a1a2e;background:white`.
+- `#receipt-preview` và `#receipt-preview img` được style bằng **ID selector** trong `style.css` — không áp dụng cho dynamic forms. Khi tạo preview image động phải thêm inline style.
 - Stat values trong owner-dashboard: `.stat-value.green/red/blue/orange`.
 - Bảng nhiều cột bọc trong `<div class="table-scroll wide">` để mobile scroll ngang.
 - All asset links dùng **relative path** (`manifest.json`, `style.css`, `sw.js`, `shared.js`) — không có leading `/`.
@@ -91,28 +95,64 @@ function showToast(msg, type = '') {
 
 - Error → `showToast('...', 'error')`, success → `showToast('...', 'success')`, neutral → `showToast('...')`
 - **Ngoại lệ**: `owner-dashboard.html` dùng thêm `showStatus()` (`.message.success/.error/.empty`) cho status area tĩnh trong table container; `driver.html` dùng `#add-msg` element riêng cho "Thêm tài xế thành công" (không phải toast).
-- `.toast` CSS đã có trong `style.css`.
 
 ### Realtime subscriptions
 `owner-dashboard.html` subscribe channel `trips-changes` cho table `trips`. Channel được lưu trong `tripsChannel` và cleanup ở `beforeunload` qua `sb.removeChannel(tripsChannel)`.
 
+### driver-page.html — patterns đặc thù
+
+Page dùng 3 biến state toàn cục:
+```js
+let activeFormId = null        // formId của form đang mở, null nếu không có
+let activeReceiptFile = null   // File ảnh đang được chọn trong form active
+```
+
+**Form management** — chỉ 1 form mở tại 1 thời điểm:
+- Mỗi form container có `data-form-id="<formId>"`.
+- formId scheme: `'new-trip'`, `'add-{tripId}'`, `'edit-{expenseId}'`, `'complete-{tripId}'`.
+- `openForm(formId)` — đóng form cũ, reset `activeReceiptFile`, mở form mới.
+- `closeActiveForm()` — đóng form hiện tại, reset cả `activeFormId` và `activeReceiptFile`.
+- Save/cancel handler: gọi `closeActiveForm()` sau khi xử lý xong.
+
+**Form inputs** — dùng `data-field` attribute thay vì ID để tránh conflict với nhiều card:
+```js
+const form = document.querySelector(`[data-form-id="add-${tripId}"]`)
+const loai = form.querySelector('[data-field="loai"]').value
+```
+
+**Upload group** — `buildUploadGroup(onRemove)` tạo block upload tái sử dụng. Preview image cần inline style (không có class CSS). Edit form dùng `wrap.dataset.photoRemoved = 'true'` khi user xóa ảnh.
+
+**Chi phí reload** — sau mỗi insert/update/delete `chi_phi_chuyen`, gọi `reloadTripChiPhi(tripId)` để fetch `trips.chi_phi` mới nhất từ DB (DB trigger tự sync).
+
 ## Database
 
 ```
-users          (id, email, full_name, sdt, role)              -- role: 'owner' | 'driver'
-trips          (id, ngay, tuyen_duong, doanh_thu, chi_phi, luong_chuyen, tam_ung, hoan_ung, tai_xe_id, ghi_chu, anh_hoa_don)
-tam_ung_thang  (id, tai_xe_id, thang, so_tien, ghi_chu)       -- thang format: 'YYYY-MM'
-xe             (id, bien_so, loai_xe, nam_sx, trang_thai, tai_xe_id)  -- trang_thai: 'hoat_dong' | 'bao_duong' | 'tam_nghi'
-bao_duong      (id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)    -- loai: 'hong_hoc' | 'linh_kien' | 'lop_xe' | 'dinh_ky'
+users          (id, email, full_name, sdt, role)                        -- role: 'owner' | 'driver'
+trips          (id, ngay_bat_dau, ngay_ket_thuc, tuyen_duong, doanh_thu,
+                chi_phi, luong_chuyen, tam_ung, hoan_ung, tai_xe_id,
+                ghi_chu, trang_thai, anh_hoa_don)
+                -- ngay_bat_dau/ngay_ket_thuc: timestamptz
+                -- trang_thai: 'dang_chay' | 'hoan_thanh'
+                -- anh_hoa_don: legacy, không còn dùng trong flow mới
+                -- chi_phi: được sync tự động bởi DB trigger từ chi_phi_chuyen
+chi_phi_chuyen (id, trip_id, loai, mo_ta, so_tien, anh_url, created_at)
+                -- loai: 'xang' | 'sua_xe' | 'bai_xe' | 'khac'
+                -- anh_url: public URL từ storage bucket 'receipts'
+tam_ung_thang  (id, tai_xe_id, thang, so_tien, ghi_chu)                -- thang format: 'YYYY-MM'
+xe             (id, bien_so, loai_xe, nam_sx, trang_thai, tai_xe_id)   -- trang_thai: 'hoat_dong' | 'bao_duong' | 'tam_nghi'
+bao_duong      (id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)     -- loai: 'hong_hoc' | 'linh_kien' | 'lop_xe' | 'dinh_ky'
 ```
 
 - `tai_xe_id` luôn = `users.id` (không phải Auth UUID).
-- `ngay` format `YYYY-MM-DD`, hiển thị qua `formatDate()` thành `DD/MM/YY`.
+- `ngay_bat_dau` dùng `new Date().toISOString()` khi insert, hiển thị qua `formatDate()` thành `HH:MM - DD/MM/YY`.
+- Filter tháng dùng: `.gte('ngay_bat_dau', start + 'T00:00:00').lt('ngay_bat_dau', endStr + 'T00:00:00')`.
+- **DB trigger** (cần tạo trong Supabase): sau mỗi insert/update/delete trên `chi_phi_chuyen`, trigger tự update `trips.chi_phi = SUM(so_tien)` của trip tương ứng. Nếu trigger chưa tồn tại, `trips.chi_phi` sẽ không tự cập nhật.
 
 ## Storage
 
 - Bucket: `receipts` (cần Public access để `getPublicUrl()` hoạt động).
 - Path format: `{users.id}/{timestamp}.{ext}` — extension đã sanitize regex.
+- Field `anh_url` trong `chi_phi_chuyen` lưu public URL. Field `anh_hoa_don` trong `trips` là legacy.
 
 ## Notes / Gotchas
 
@@ -121,17 +161,16 @@ bao_duong      (id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)    -- loai: '
   - Page admin/driver sẽ cần policy "user đọc được row của mình" + "owner đọc được tất cả".
 - **`bai10.checkUserRole`** là duy nhất chỗ INSERT vào `users` từ Google OAuth (signup-on-login). `shared.getUserRole/getUserProfile` chỉ select.
 - **`bai10.formatStatNumber`** (local) ≠ `shared.formatMoney`: bai10 hiển thị dạng rút gọn `1.2B`/`345M`/`12K`, các page khác dùng full `1.234.567 đ`.
-- **Date format hiển thị**: luôn `dd/mm/yy` (2 chữ số năm).
+- **Date format hiển thị**: `HH:MM - DD/MM/YY` (2 chữ số năm, có giờ phút). Đây là output của `formatDate()` hiện tại.
 - **Currency**: luôn `đ` (chữ thường), KHÔNG dùng `₫` unicode.
 - **Google OAuth `redirectTo`**: dùng `window.location.origin + '/bai10.html'` để hoạt động cả local và production.
 
 ## Recent changes log
 
-Các bài học gần nhất (chi tiết git log):
-
-- Bài 30 (2026-05-03): Thay toàn bộ `alert()` bằng `showToast()` trong 4 page (vehicles, driver, owner-dashboard, driver-page). Refactor `driver-page.html` — bỏ `showMsg()`/`#msg` div, thêm `resetForm()`, dùng `showToast()` nhất quán.
+- Bài 31 (2026-05-05): Refactor `driver-page.html` — multi-expense trip tracking. 2 tab Đang chạy/Hoàn thành, tạo chuyến mới, thêm/sửa/xóa chi phí per trip, xác nhận hoàn thành với doanh thu thực tế. Thêm bảng `chi_phi_chuyen`. Đổi `ngay` → `ngay_bat_dau` (timestamptz) trên `trips`, thêm `trang_thai`/`ngay_ket_thuc`. Update `formatDate()` xuất `HH:MM - DD/MM/YY`. Fix filter tháng dùng timestamptz trong `owner-dashboard.html` và `driver.html`.
+- Bài 30 (2026-05-03): Thay toàn bộ `alert()` bằng `showToast()` trong 4 page. Refactor `driver-page.html` — bỏ `showMsg()`/`#msg` div, thêm `resetForm()`.
 - Bài 29 (2026-05-03): Tạo `shared.js`, fix lệch ID Auth/users, đồng bộ format tiền tệ, thêm nav `vehicles.html` ở header owner-dashboard, `setupLogoutListener` cho mọi admin page.
 - Bài 28: Redesign `bai10.html` thành landing mobile-first (hero + stats public + features + CTA).
 - Bài 27: Security hardening — chuyển từ `innerHTML` template literal sang `createElement`/`textContent` (chống XSS), validation `Number.isFinite`, error handling toàn diện, `.table-scroll` wrapper cho mobile.
 - Bài 26: Tách shared `style.css`, xóa `<style>` blocks khỏi 4 page admin/driver.
-- Bài 25 trở về trước: xem CONTEXT.md cũ hoặc `git log`.
+- Bài 25 trở về trước: xem `git log`.
