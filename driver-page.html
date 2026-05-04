@@ -1,255 +1,700 @@
 <!DOCTYPE html>
 <html lang="vi">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title> Driver page</title>
-        <link rel="manifest" href="manifest.json">
-        <link rel="stylesheet" href="style.css">
-        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-        <script src="shared.js"></script>
-    </head>
-    <body>
-        <div class ="header">
-            <h2> 🚛 Driver Page </h2>
-            <button class="btn btn-logout" onclick ="logout()">Đăng xuất</button>
-
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Page</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="shared.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h2>🚛 Driver Page</h2>
+        <button class="btn btn-logout" onclick="logout()">Đăng xuất</button>
+    </div>
+    <div class="container">
+        <div class="filter-bar">
+            <button id="tab-btn-dang-chay" class="btn" onclick="switchTab('dang_chay')">🚛 Đang chạy</button>
+            <button id="tab-btn-hoan-thanh" class="btn btn-gray" onclick="switchTab('hoan_thanh')">✅ Hoàn thành</button>
         </div>
-        <div class = "container">
-            <div class = "card">
-                <h3> Nhập Chuyến</h3>
-                <div class ="form-group">
-                    <label> Bắt đầu chuyến </label>
-                    <input type ="datetime-local" id="ngay_bat_dau">
 
-                </div>
-                <div class ="form-group">
-                    <label> Tuyến Đường </label>
-                    <input type ="text" id="tuyen_duong">
-
-                </div>
-                <div class = "form-group">
-                    <label> Doanh Thu (đ) </label>
-                    <input type = "number" id = "doanh_thu">
-
-                </div>
-                <div class = "form-group">
-                    <label> Chi Phí (đ) </label>
-                    <input type = "number" id = "chi_phi">
-
-                </div>
-                <div class = "form-group">
-                    <label> Ghi Chú </label>
-                    <input type ="text" id = "ghi_chu">
+        <!-- Tab: Đang chạy -->
+        <div id="panel-dang-chay">
+            <div style="margin-bottom:12px">
+                <button class="btn btn-success" onclick="openForm('new-trip')">+ Tạo chuyến mới</button>
+            </div>
+            <div class="card" data-form-id="new-trip" style="display:none">
+                <h3>Tạo chuyến mới</h3>
+                <div class="form-group">
+                    <label>Tuyến đường</label>
+                    <input type="text" id="new-trip-tuyen">
                 </div>
                 <div class="form-group">
-                    <label>Ảnh Hóa Đơn</label>
-                    <input type="file" id="receipt-camera" class="upload-input" accept="image/*" capture="environment" onchange="previewReceipt(this)">
-                    <input type="file" id="receipt-gallery" class="upload-input" accept="image/*" onchange="previewReceipt(this)">
-                    <div class="upload-buttons">
-                        <button type="button" class="btn-upload" onclick="document.getElementById('receipt-camera').click()">
-                            <span class="upload-icon">📷</span>
-                            Chụp ảnh
-                        </button>
-                        <button type="button" class="btn-upload" onclick="document.getElementById('receipt-gallery').click()">
-                            <span class="upload-icon">🖼️</span>
-                            Chọn từ thư viện
-                        </button>
-                    </div>
-                    <div id="receipt-preview">
-                        <img id="receipt-img" src="" alt="Ảnh hóa đơn">
-                        <span class="preview-remove" onclick="removeReceipt()">✕ Xóa ảnh</span>
-                    </div>
+                    <label>Ghi chú</label>
+                    <input type="text" id="new-trip-ghi-chu">
                 </div>
-                <div class = "form-group">
-                    <label> Lương (đ) </label>
-                    <input type = 'number' id ="luong_chuyen">
-                </div>
-                <div class ="form-group">
-                    <label> Tạm ứng (đ) </label>
-                    <input type ="number" id = "tam_ung">
-                </div>
-                <div class = "form-group">
-                    <label> Hoàn ứng (đ) </label>
-                    <input type= "number" id = "hoan_ung">
-                </div>
-                <button class="btn btn-full" onclick="submitTrip()">Nhập Chuyến</button>
-                
-            <div class ="card">
-                <h3> Chuyến của tôi</h3>
-                <div class="table-scroll">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th> Ngày</th>
-                                <th> Tuyến đường</th>
-                                <th> Doanh thu (đ) </th>
-
-                            </tr>
-                        </thead>
-                        <tbody id="my-trip"></tbody>
-                    </table>
+                <div style="display:flex;gap:8px">
+                    <button class="btn" onclick="submitNewTrip()">Tạo chuyến</button>
+                    <button class="btn btn-gray" onclick="closeNewTripForm()">Hủy</button>
                 </div>
             </div>
+            <div id="active-trips"></div>
         </div>
-        <script>
+
+        <!-- Tab: Hoàn thành -->
+        <div id="panel-hoan-thanh" style="display:none">
+            <div class="table-scroll wide">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Tuyến đường</th>
+                            <th>Doanh thu</th>
+                            <th>Chi phí</th>
+                            <th>Lợi nhuận</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="completed-trips"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script>
     function showToast(msg, type = '') {
-        const toast = document.getElementById('toast');
-        toast.textContent = msg;
-        toast.className = 'toast show ' + type;
-        setTimeout(() => toast.className = 'toast', 3000);
+        const t = document.getElementById('toast')
+        t.textContent = msg
+        t.className = 'toast show ' + type
+        setTimeout(() => t.className = 'toast', 3000)
     }
 
-    const sb = createSb();
-    let currentUser = null;
-    let currentProfileId = null;
-    let selectedReceiptFile = null;
+    const sb = createSb()
+    let currentUser = null
+    let currentProfileId = null
+    let activeFormId = null
+    let activeReceiptFile = null
 
-    function previewReceipt(input) {
-        if (!input.files || !input.files[0]) return;
-        selectedReceiptFile = input.files[0];
-        const reader = new FileReader();
-        reader.onload = e => {
-            document.getElementById('receipt-img').src = e.target.result;
-            document.getElementById('receipt-preview').style.display = 'block';
-        };
-        reader.readAsDataURL(input.files[0]);
+    const EXPENSE_TYPES = {
+        xang:   '⛽ Xăng',
+        sua_xe: '🔧 Sửa xe',
+        bai_xe: '🅿️ Bãi xe',
+        khac:   '📦 Khác'
     }
 
-    function removeReceipt() {
-        document.getElementById('receipt-camera').value = '';
-        document.getElementById('receipt-gallery').value = '';
-        selectedReceiptFile = null;
-        document.getElementById('receipt-img').src = '';
-        document.getElementById('receipt-preview').style.display = 'none';
+    // ── Tab ──────────────────────────────────────────────────────────
+    function switchTab(tab) {
+        const isDang = tab === 'dang_chay'
+        document.getElementById('panel-dang-chay').style.display = isDang ? 'block' : 'none'
+        document.getElementById('panel-hoan-thanh').style.display = isDang ? 'none' : 'block'
+        document.getElementById('tab-btn-dang-chay').className = isDang ? 'btn' : 'btn btn-gray'
+        document.getElementById('tab-btn-hoan-thanh').className = isDang ? 'btn btn-gray' : 'btn'
+        if (!isDang) loadCompletedTrips()
     }
 
+    // ── Form management ───────────────────────────────────────────────
+    function openForm(formId) {
+        if (activeFormId !== null) {
+            const oldForm = document.querySelector(`[data-form-id="${activeFormId}"]`)
+            if (oldForm) oldForm.style.display = 'none'
+            activeReceiptFile = null
+            activeFormId = null
+        }
+        activeFormId = formId
+        const form = document.querySelector(`[data-form-id="${formId}"]`)
+        if (form) form.style.display = 'block'
+    }
+
+    function closeActiveForm() {
+        if (activeFormId !== null) {
+            const form = document.querySelector(`[data-form-id="${activeFormId}"]`)
+            if (form) form.style.display = 'none'
+            activeReceiptFile = null
+            activeFormId = null
+        }
+    }
+
+    function closeNewTripForm() {
+        document.getElementById('new-trip-tuyen').value = ''
+        document.getElementById('new-trip-ghi-chu').value = ''
+        closeActiveForm()
+    }
+
+    // ── Upload ────────────────────────────────────────────────────────
     async function uploadReceipt(file, userId) {
-        const ext = (file.name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '') || 'jpg';
-        const path = `${userId}/${Date.now()}.${ext}`;
-        const { error } = await sb.storage.from('receipts').upload(path, file, { upsert: false });
-        if (error) throw error;
-        const { data } = sb.storage.from('receipts').getPublicUrl(path);
-        return data.publicUrl;
+        const ext = (file.name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '') || 'jpg'
+        const path = `${userId}/${Date.now()}.${ext}`
+        const { error } = await sb.storage.from('receipts').upload(path, file, { upsert: false })
+        if (error) throw error
+        const { data } = sb.storage.from('receipts').getPublicUrl(path)
+        return data.publicUrl
     }
 
-    function resetForm() {
-        ['ngay_bat_dau', 'tuyen_duong', 'doanh_thu', 'chi_phi', 'ghi_chu',
-         'luong_chuyen', 'tam_ung', 'hoan_ung'].forEach(id => {
-            document.getElementById(id).value = '';
-        });
-        removeReceipt();
+    function handleFileSelect(input) {
+        if (!input.files || !input.files[0]) return
+        activeReceiptFile = input.files[0]
+        const reader = new FileReader()
+        reader.onload = e => {
+            const form = document.querySelector(`[data-form-id="${activeFormId}"]`)
+            if (!form) return
+            const img = form.querySelector('.receipt-preview-img')
+            const preview = form.querySelector('.receipt-preview')
+            if (img) img.src = e.target.result
+            if (preview) preview.style.display = 'block'
+        }
+        reader.readAsDataURL(activeReceiptFile)
     }
 
-    async function submitTrip() {
-        if (!currentUser || !currentProfileId) {
-            showToast('Bạn cần đăng nhập trước khi nhập chuyến', 'error');
-            return;
-        }
-        const ngay_bat_dau = document.getElementById('ngay_bat_dau').value;
-        const tuyen_duong = document.getElementById('tuyen_duong').value;
-        const doanhThuValue = document.getElementById('doanh_thu').value;
-        const chiPhiValue = document.getElementById('chi_phi').value;
-        const doanh_thu = Number(doanhThuValue);
-        const chi_phi = Number(chiPhiValue);
-        const ghi_chu = document.getElementById('ghi_chu').value;
-        const luong_chuyen = Number(document.getElementById('luong_chuyen').value) || 0;
-        const tam_ung = Number(document.getElementById('tam_ung').value) || 0;
-        const hoan_ung = Number(document.getElementById('hoan_ung').value) || 0;
+    // Builds a reusable upload group. onRemove() is called when user removes photo.
+    function buildUploadGroup(onRemove) {
+        const group = document.createElement('div')
+        group.className = 'form-group'
 
-        if (!ngay_bat_dau || !tuyen_duong || doanhThuValue === '' || chiPhiValue === ''
-            || !Number.isFinite(doanh_thu) || !Number.isFinite(chi_phi)) {
-            showToast('Bạn chưa nhập đủ thông tin', 'error');
-            return;
+        const label = document.createElement('label')
+        label.textContent = 'Ảnh hóa đơn'
+
+        const cameraInput = document.createElement('input')
+        cameraInput.type = 'file'
+        cameraInput.accept = 'image/*'
+        cameraInput.setAttribute('capture', 'environment')
+        cameraInput.className = 'upload-input'
+        cameraInput.onchange = e => handleFileSelect(e.target)
+
+        const galleryInput = document.createElement('input')
+        galleryInput.type = 'file'
+        galleryInput.accept = 'image/*'
+        galleryInput.className = 'upload-input'
+        galleryInput.onchange = e => handleFileSelect(e.target)
+
+        const uploadBtns = document.createElement('div')
+        uploadBtns.className = 'upload-buttons'
+
+        const btnCam = document.createElement('button')
+        btnCam.type = 'button'
+        btnCam.className = 'btn-upload'
+        btnCam.innerHTML = '<span class="upload-icon">📷</span> Chụp ảnh'
+        btnCam.onclick = () => cameraInput.click()
+
+        const btnGal = document.createElement('button')
+        btnGal.type = 'button'
+        btnGal.className = 'btn-upload'
+        btnGal.innerHTML = '<span class="upload-icon">🖼️</span> Thư viện'
+        btnGal.onclick = () => galleryInput.click()
+
+        uploadBtns.append(btnCam, btnGal)
+
+        const preview = document.createElement('div')
+        preview.className = 'receipt-preview'
+        preview.style.marginTop = '12px'
+        preview.style.display = 'none'
+
+        const previewImg = document.createElement('img')
+        previewImg.className = 'receipt-preview-img'
+        previewImg.style.cssText = 'width:100%;max-height:200px;object-fit:cover;border-radius:var(--radius-sm);border:1.5px solid var(--border);display:block'
+
+        const removeSpan = document.createElement('span')
+        removeSpan.className = 'preview-remove'
+        removeSpan.textContent = '✕ Xóa ảnh'
+        removeSpan.onclick = () => {
+            cameraInput.value = ''
+            galleryInput.value = ''
+            activeReceiptFile = null
+            previewImg.src = ''
+            preview.style.display = 'none'
+            if (onRemove) onRemove()
         }
 
-        let anh_hoa_don = null;
-        if (selectedReceiptFile) {
+        preview.append(previewImg, removeSpan)
+        group.append(label, cameraInput, galleryInput, uploadBtns, preview)
+        return group
+    }
+
+    // ── New Trip ──────────────────────────────────────────────────────
+    async function submitNewTrip() {
+        const tuyen_duong = document.getElementById('new-trip-tuyen').value.trim()
+        const ghi_chu = document.getElementById('new-trip-ghi-chu').value.trim()
+        if (!tuyen_duong) { showToast('Vui lòng nhập tuyến đường', 'error'); return }
+        const { error } = await sb.from('trips').insert({
+            tuyen_duong, ghi_chu: ghi_chu || null,
+            doanh_thu: 0, chi_phi: 0,
+            trang_thai: 'dang_chay',
+            ngay_bat_dau: new Date().toISOString(),
+            tai_xe_id: currentProfileId
+        })
+        if (error) { showToast('Lỗi: ' + error.message, 'error'); return }
+        document.getElementById('new-trip-tuyen').value = ''
+        document.getElementById('new-trip-ghi-chu').value = ''
+        closeActiveForm()
+        showToast('Tạo chuyến thành công', 'success')
+        loadActiveTrips()
+    }
+
+    // ── Active Trips ──────────────────────────────────────────────────
+    async function loadActiveTrips() {
+        const { data, error } = await sb
+            .from('trips').select('*')
+            .eq('tai_xe_id', currentProfileId)
+            .eq('trang_thai', 'dang_chay')
+            .order('ngay_bat_dau', { ascending: false })
+        const container = document.getElementById('active-trips')
+        container.textContent = ''
+        if (error) { showToast('Lỗi tải chuyến: ' + error.message, 'error'); return }
+        if (!data || data.length === 0) {
+            const p = document.createElement('p')
+            p.textContent = 'Chưa có chuyến nào đang chạy'
+            p.style.color = 'var(--text-muted)'
+            container.appendChild(p)
+            return
+        }
+        data.forEach(trip => container.appendChild(buildTripCard(trip)))
+    }
+
+    function buildTripCard(trip) {
+        const card = document.createElement('div')
+        card.className = 'card'
+        card.dataset.tripId = trip.id
+
+        const title = document.createElement('div')
+        title.style.cssText = 'font-weight:700;font-size:1.05em;margin-bottom:4px'
+        title.textContent = trip.tuyen_duong || ''
+
+        const startEl = document.createElement('div')
+        startEl.style.cssText = 'color:var(--text-muted);font-size:0.9em;margin-bottom:4px'
+        startEl.textContent = 'Bắt đầu: ' + formatDate(trip.ngay_bat_dau)
+
+        const chiPhiEl = document.createElement('div')
+        chiPhiEl.id = 'chi-phi-' + trip.id
+        chiPhiEl.style.cssText = 'color:var(--danger);margin-bottom:10px;font-weight:600'
+        chiPhiEl.textContent = 'Tổng chi phí: ' + formatMoney(trip.chi_phi)
+
+        const btnBar = document.createElement('div')
+        btnBar.style.cssText = 'display:flex;gap:8px;margin-bottom:8px'
+
+        const btnAddExp = document.createElement('button')
+        btnAddExp.className = 'btn btn-warning btn-sm'
+        btnAddExp.textContent = '➕ Chi phí'
+        btnAddExp.onclick = () => openForm('add-' + trip.id)
+
+        const btnComplete = document.createElement('button')
+        btnComplete.className = 'btn btn-success btn-sm'
+        btnComplete.textContent = '✓ Hoàn thành'
+        btnComplete.onclick = () => openForm('complete-' + trip.id)
+
+        btnBar.append(btnAddExp, btnComplete)
+
+        const expenseList = document.createElement('div')
+        expenseList.id = 'expenses-' + trip.id
+
+        const addExpForm = buildAddExpenseForm(trip.id)
+        const completeForm = buildCompleteForm(trip.id)
+
+        card.append(title, startEl, chiPhiEl, btnBar, expenseList, addExpForm, completeForm)
+        loadExpenses(trip.id)
+        return card
+    }
+
+    // ── Add Expense Form ──────────────────────────────────────────────
+    function buildAddExpenseForm(tripId) {
+        const wrap = document.createElement('div')
+        wrap.setAttribute('data-form-id', 'add-' + tripId)
+        wrap.style.cssText = 'display:none;border-top:1px solid var(--border);padding-top:12px;margin-top:4px'
+
+        const h4 = document.createElement('h4')
+        h4.style.cssText = 'margin-bottom:10px;color:var(--primary)'
+        h4.textContent = 'Thêm chi phí'
+
+        const loaiGroup = document.createElement('div')
+        loaiGroup.className = 'form-group'
+        const loaiLabel = document.createElement('label')
+        loaiLabel.textContent = 'Loại'
+        const loaiSelect = document.createElement('select')
+        loaiSelect.setAttribute('data-field', 'loai')
+        loaiSelect.style.cssText = 'width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;color:#1a1a2e;background:white'
+        Object.entries(EXPENSE_TYPES).forEach(([val, text]) => {
+            const opt = document.createElement('option')
+            opt.value = val
+            opt.textContent = text
+            loaiSelect.appendChild(opt)
+        })
+        loaiGroup.append(loaiLabel, loaiSelect)
+
+        const soTienGroup = document.createElement('div')
+        soTienGroup.className = 'form-group'
+        const soTienLabel = document.createElement('label')
+        soTienLabel.textContent = 'Số tiền (đ)'
+        const soTienInput = document.createElement('input')
+        soTienInput.type = 'number'
+        soTienInput.setAttribute('data-field', 'so_tien')
+        soTienGroup.append(soTienLabel, soTienInput)
+
+        const moTaGroup = document.createElement('div')
+        moTaGroup.className = 'form-group'
+        const moTaLabel = document.createElement('label')
+        moTaLabel.textContent = 'Mô tả'
+        const moTaInput = document.createElement('input')
+        moTaInput.type = 'text'
+        moTaInput.setAttribute('data-field', 'mo_ta')
+        moTaGroup.append(moTaLabel, moTaInput)
+
+        const uploadGroup = buildUploadGroup(null)
+
+        const btnRow = document.createElement('div')
+        btnRow.style.cssText = 'display:flex;gap:8px;margin-top:4px'
+        const btnSave = document.createElement('button')
+        btnSave.className = 'btn'
+        btnSave.textContent = 'Lưu chi phí'
+        btnSave.onclick = () => submitAddExpense(tripId)
+        const btnCancel = document.createElement('button')
+        btnCancel.className = 'btn btn-gray'
+        btnCancel.textContent = 'Hủy'
+        btnCancel.onclick = closeActiveForm
+        btnRow.append(btnSave, btnCancel)
+
+        wrap.append(h4, loaiGroup, soTienGroup, moTaGroup, uploadGroup, btnRow)
+        return wrap
+    }
+
+    async function submitAddExpense(tripId) {
+        const form = document.querySelector(`[data-form-id="add-${tripId}"]`)
+        const loai = form.querySelector('[data-field="loai"]').value
+        const soTienVal = form.querySelector('[data-field="so_tien"]').value
+        const mo_ta = form.querySelector('[data-field="mo_ta"]').value.trim()
+        const so_tien = Number(soTienVal)
+        if (!soTienVal || !Number.isFinite(so_tien) || so_tien < 0) {
+            showToast('Vui lòng nhập số tiền hợp lệ', 'error')
+            return
+        }
+        let anh_url = null
+        if (activeReceiptFile) {
             try {
-                showToast('Đang upload ảnh...');
-                anh_hoa_don = await uploadReceipt(selectedReceiptFile, currentProfileId);
+                showToast('Đang upload ảnh...')
+                anh_url = await uploadReceipt(activeReceiptFile, currentProfileId)
             } catch (e) {
-                showToast('Lỗi upload ảnh: ' + e.message, 'error');
-                return;
+                showToast('Lỗi upload ảnh: ' + e.message, 'error')
+                return
             }
         }
-
-        const { error } = await sb.from('trips').insert({
-            ngay_bat_dau: new Date(ngay_bat_dau).toISOString(), tuyen_duong, doanh_thu, chi_phi, ghi_chu,
-            tai_xe_id: currentProfileId,
-            luong_chuyen, tam_ung, hoan_ung, anh_hoa_don,
-        });
-
-        if (error) {
-            showToast('Lỗi: ' + error.message, 'error');
-        } else {
-            showToast('Nhập chuyến thành công', 'success');
-            resetForm();
-            loadMyTrips();
-        }
+        const { error } = await sb.from('chi_phi_chuyen').insert({
+            trip_id: tripId, loai, mo_ta: mo_ta || null, so_tien, anh_url
+        })
+        if (error) { showToast('Lỗi: ' + error.message, 'error'); return }
+        form.querySelector('[data-field="so_tien"]').value = ''
+        form.querySelector('[data-field="mo_ta"]').value = ''
+        closeActiveForm()
+        showToast('Đã thêm chi phí', 'success')
+        await reloadTripChiPhi(tripId)
+        await loadExpenses(tripId)
     }
 
-    async function loadMyTrips() {
-        if (!currentUser || !currentProfileId) return;
+    // ── Expenses ──────────────────────────────────────────────────────
+    async function loadExpenses(tripId) {
         const { data, error } = await sb
-            .from('trips')
-            .select('*')
-            .eq('tai_xe_id', currentProfileId)
-            .order('ngay_bat_dau', { ascending: false });
-
-        const tbody = document.getElementById('my-trip');
-        if (error) {
-            showToast('Không thể tải chuyến: ' + error.message, 'error');
-            return;
-        }
-
-        tbody.textContent = '';
-
-        if (!data || data.length === 0) {
-            const row = document.createElement('tr');
-            const cell = document.createElement('td');
-            cell.colSpan = 3;
-            cell.textContent = 'Chưa có chuyến nào';
-            cell.style.textAlign = 'center';
-            cell.style.color = 'var(--text-muted)';
-            row.appendChild(cell);
-            tbody.appendChild(row);
-            return;
-        }
-
-        data.forEach(c => {
-            const row = document.createElement('tr');
-            const ngayCell = document.createElement('td');
-            ngayCell.textContent = formatDate(c.ngay_bat_dau);
-
-            const tuyenCell = document.createElement('td');
-            tuyenCell.textContent = c.tuyen_duong || '';
-
-            const doanhThuCell = document.createElement('td');
-            doanhThuCell.textContent = formatMoney(c.doanh_thu);
-            doanhThuCell.className = 'text-success';
-
-            row.append(ngayCell, tuyenCell, doanhThuCell);
-            tbody.appendChild(row);
-        });
+            .from('chi_phi_chuyen').select('*')
+            .eq('trip_id', tripId)
+            .order('created_at', { ascending: true })
+        if (!error) renderExpenses(tripId, data || [])
     }
 
+    function renderExpenses(tripId, expenses) {
+        const container = document.getElementById('expenses-' + tripId)
+        if (!container) return
+        container.textContent = ''
+        expenses.forEach(exp => {
+            const typeLabel = EXPENSE_TYPES[exp.loai] || exp.loai || ''
+            const icon = typeLabel.split(' ')[0] || ''
+
+            const row = document.createElement('div')
+            row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;flex-wrap:wrap'
+
+            const iconEl = document.createElement('span')
+            iconEl.textContent = icon
+
+            const descEl = document.createElement('span')
+            descEl.style.flex = '1'
+            descEl.textContent = exp.mo_ta || typeLabel.replace(/^\S+\s?/, '')
+
+            const amountEl = document.createElement('span')
+            amountEl.style.cssText = 'color:var(--danger);font-weight:600'
+            amountEl.textContent = formatMoney(exp.so_tien)
+
+            const actions = document.createElement('div')
+            actions.style.cssText = 'display:flex;gap:4px;align-items:center'
+
+            if (exp.anh_url) {
+                const photoLink = document.createElement('a')
+                photoLink.href = exp.anh_url
+                photoLink.target = '_blank'
+                photoLink.textContent = '📷'
+                photoLink.style.textDecoration = 'none'
+                actions.appendChild(photoLink)
+            }
+
+            const editBtn = document.createElement('button')
+            editBtn.className = 'btn btn-sm btn-gray'
+            editBtn.textContent = '✏️'
+            editBtn.onclick = () => openForm('edit-' + exp.id)
+
+            const delBtn = document.createElement('button')
+            delBtn.className = 'btn btn-sm btn-danger'
+            delBtn.textContent = '🗑️'
+            delBtn.onclick = () => deleteExpense(exp.id, tripId)
+
+            actions.append(editBtn, delBtn)
+            row.append(iconEl, descEl, amountEl, actions)
+
+            const editForm = buildEditExpenseForm(exp, tripId)
+            container.append(row, editForm)
+        })
+    }
+
+    function buildEditExpenseForm(exp, tripId) {
+        const wrap = document.createElement('div')
+        wrap.setAttribute('data-form-id', 'edit-' + exp.id)
+        wrap.dataset.photoRemoved = 'false'
+        wrap.style.cssText = 'display:none;background:var(--bg);padding:12px;border-radius:var(--radius-sm);margin:4px 0'
+
+        const loaiGroup = document.createElement('div')
+        loaiGroup.className = 'form-group'
+        const loaiLabel = document.createElement('label')
+        loaiLabel.textContent = 'Loại'
+        const loaiSelect = document.createElement('select')
+        loaiSelect.setAttribute('data-field', 'loai')
+        loaiSelect.style.cssText = 'width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;color:#1a1a2e;background:white'
+        Object.entries(EXPENSE_TYPES).forEach(([val, text]) => {
+            const opt = document.createElement('option')
+            opt.value = val
+            opt.textContent = text
+            if (val === exp.loai) opt.selected = true
+            loaiSelect.appendChild(opt)
+        })
+        loaiGroup.append(loaiLabel, loaiSelect)
+
+        const soTienGroup = document.createElement('div')
+        soTienGroup.className = 'form-group'
+        const soTienLabel = document.createElement('label')
+        soTienLabel.textContent = 'Số tiền (đ)'
+        const soTienInput = document.createElement('input')
+        soTienInput.type = 'number'
+        soTienInput.value = exp.so_tien || ''
+        soTienInput.setAttribute('data-field', 'so_tien')
+        soTienGroup.append(soTienLabel, soTienInput)
+
+        const moTaGroup = document.createElement('div')
+        moTaGroup.className = 'form-group'
+        const moTaLabel = document.createElement('label')
+        moTaLabel.textContent = 'Mô tả'
+        const moTaInput = document.createElement('input')
+        moTaInput.type = 'text'
+        moTaInput.value = exp.mo_ta || ''
+        moTaInput.setAttribute('data-field', 'mo_ta')
+        moTaGroup.append(moTaLabel, moTaInput)
+
+        const uploadGroup = buildUploadGroup(() => { wrap.dataset.photoRemoved = 'true' })
+        if (exp.anh_url) {
+            const preview = uploadGroup.querySelector('.receipt-preview')
+            const img = uploadGroup.querySelector('.receipt-preview-img')
+            if (preview && img) { img.src = exp.anh_url; preview.style.display = 'block' }
+        }
+
+        const btnRow = document.createElement('div')
+        btnRow.style.cssText = 'display:flex;gap:8px;margin-top:4px'
+        const btnSave = document.createElement('button')
+        btnSave.className = 'btn'
+        btnSave.textContent = 'Lưu'
+        btnSave.onclick = () => submitEditExpense(exp.id, exp.anh_url, tripId)
+        const btnCancel = document.createElement('button')
+        btnCancel.className = 'btn btn-gray'
+        btnCancel.textContent = 'Hủy'
+        btnCancel.onclick = closeActiveForm
+        btnRow.append(btnSave, btnCancel)
+
+        wrap.append(loaiGroup, soTienGroup, moTaGroup, uploadGroup, btnRow)
+        return wrap
+    }
+
+    async function submitEditExpense(expenseId, currentAnhUrl, tripId) {
+        const form = document.querySelector(`[data-form-id="edit-${expenseId}"]`)
+        const loai = form.querySelector('[data-field="loai"]').value
+        const soTienVal = form.querySelector('[data-field="so_tien"]').value
+        const mo_ta = form.querySelector('[data-field="mo_ta"]').value.trim()
+        const so_tien = Number(soTienVal)
+        if (!soTienVal || !Number.isFinite(so_tien) || so_tien < 0) {
+            showToast('Vui lòng nhập số tiền hợp lệ', 'error')
+            return
+        }
+        let anh_url = currentAnhUrl
+        if (activeReceiptFile) {
+            try {
+                showToast('Đang upload ảnh...')
+                anh_url = await uploadReceipt(activeReceiptFile, currentProfileId)
+            } catch (e) {
+                showToast('Lỗi upload ảnh: ' + e.message, 'error')
+                return
+            }
+        } else if (form.dataset.photoRemoved === 'true') {
+            anh_url = null
+        }
+        const { error } = await sb.from('chi_phi_chuyen')
+            .update({ loai, mo_ta: mo_ta || null, so_tien, anh_url })
+            .eq('id', expenseId)
+        if (error) { showToast('Lỗi: ' + error.message, 'error'); return }
+        closeActiveForm()
+        showToast('Đã cập nhật chi phí', 'success')
+        await reloadTripChiPhi(tripId)
+        await loadExpenses(tripId)
+    }
+
+    async function deleteExpense(expenseId, tripId) {
+        if (!confirm('Xóa chi phí này?')) return
+        const { error } = await sb.from('chi_phi_chuyen').delete().eq('id', expenseId)
+        if (error) { showToast('Lỗi: ' + error.message, 'error'); return }
+        showToast('Đã xóa chi phí', 'success')
+        await reloadTripChiPhi(tripId)
+        await loadExpenses(tripId)
+    }
+
+    async function reloadTripChiPhi(tripId) {
+        const { data } = await sb.from('trips').select('chi_phi').eq('id', tripId).single()
+        const el = document.getElementById('chi-phi-' + tripId)
+        if (el && data) el.textContent = 'Tổng chi phí: ' + formatMoney(data.chi_phi)
+    }
+
+    // ── Complete Form ─────────────────────────────────────────────────
+    function buildCompleteForm(tripId) {
+        const wrap = document.createElement('div')
+        wrap.setAttribute('data-form-id', 'complete-' + tripId)
+        wrap.style.cssText = 'display:none;border-top:1px solid var(--border);padding-top:12px;margin-top:4px'
+
+        const h4 = document.createElement('h4')
+        h4.style.cssText = 'margin-bottom:10px;color:var(--primary)'
+        h4.textContent = 'Xác nhận hoàn thành chuyến'
+
+        function field(labelText, fieldName) {
+            const g = document.createElement('div')
+            g.className = 'form-group'
+            const l = document.createElement('label')
+            l.textContent = labelText
+            const i = document.createElement('input')
+            i.type = 'number'
+            i.setAttribute('data-field', fieldName)
+            g.append(l, i)
+            return g
+        }
+
+        const btnRow = document.createElement('div')
+        btnRow.style.cssText = 'display:flex;gap:8px;margin-top:4px'
+        const btnConfirm = document.createElement('button')
+        btnConfirm.className = 'btn btn-success'
+        btnConfirm.textContent = 'Xác nhận hoàn thành'
+        btnConfirm.onclick = () => submitComplete(tripId)
+        const btnCancel = document.createElement('button')
+        btnCancel.className = 'btn btn-gray'
+        btnCancel.textContent = 'Hủy'
+        btnCancel.onclick = closeActiveForm
+        btnRow.append(btnConfirm, btnCancel)
+
+        wrap.append(
+            h4,
+            field('Doanh thu thực tế (đ)', 'doanh_thu'),
+            field('Lương chuyến (đ)', 'luong_chuyen'),
+            field('Tạm ứng (đ)', 'tam_ung'),
+            field('Hoàn ứng (đ)', 'hoan_ung'),
+            btnRow
+        )
+        return wrap
+    }
+
+    async function submitComplete(tripId) {
+        const form = document.querySelector(`[data-form-id="complete-${tripId}"]`)
+        const dtVal = form.querySelector('[data-field="doanh_thu"]').value
+        const doanh_thu = Number(dtVal)
+        if (!dtVal || !Number.isFinite(doanh_thu) || doanh_thu < 0) {
+            showToast('Vui lòng nhập doanh thu thực tế', 'error')
+            return
+        }
+        const luong_chuyen = Number(form.querySelector('[data-field="luong_chuyen"]').value) || 0
+        const tam_ung      = Number(form.querySelector('[data-field="tam_ung"]').value) || 0
+        const hoan_ung     = Number(form.querySelector('[data-field="hoan_ung"]').value) || 0
+        const { error } = await sb.from('trips').update({
+            trang_thai: 'hoan_thanh',
+            ngay_ket_thuc: new Date().toISOString(),
+            doanh_thu, luong_chuyen, tam_ung, hoan_ung
+        }).eq('id', tripId)
+        if (error) { showToast('Lỗi: ' + error.message, 'error'); return }
+        closeActiveForm()
+        showToast('Hoàn thành chuyến', 'success')
+        loadActiveTrips()
+    }
+
+    // ── Completed Trips ───────────────────────────────────────────────
+    async function loadCompletedTrips() {
+        const { data, error } = await sb
+            .from('trips').select('*')
+            .eq('tai_xe_id', currentProfileId)
+            .eq('trang_thai', 'hoan_thanh')
+            .order('ngay_bat_dau', { ascending: false })
+        const tbody = document.getElementById('completed-trips')
+        tbody.textContent = ''
+        if (error) { showToast('Lỗi tải chuyến: ' + error.message, 'error'); return }
+        if (!data || data.length === 0) {
+            const tr = document.createElement('tr')
+            const td = document.createElement('td')
+            td.colSpan = 6
+            td.textContent = 'Chưa có chuyến hoàn thành'
+            td.style.cssText = 'text-align:center;color:var(--text-muted);padding:20px'
+            tr.appendChild(td)
+            tbody.appendChild(tr)
+            return
+        }
+        data.forEach(trip => {
+            const doanhThu = Number(trip.doanh_thu) || 0
+            const chiPhi   = Number(trip.chi_phi) || 0
+            const loiNhuan = doanhThu - chiPhi
+            const tr = document.createElement('tr')
+            const cells = [
+                formatDate(trip.ngay_bat_dau),
+                trip.tuyen_duong || '',
+                formatMoney(doanhThu),
+                formatMoney(chiPhi),
+                formatMoney(loiNhuan)
+            ]
+            cells.forEach((val, i) => {
+                const td = document.createElement('td')
+                td.textContent = val
+                if (i === 2) td.style.color = 'var(--success)'
+                if (i === 3) td.style.color = 'var(--danger)'
+                if (i === 4) td.style.color = loiNhuan >= 0 ? 'var(--success)' : 'var(--danger)'
+                tr.appendChild(td)
+            })
+            const tdAction = document.createElement('td')
+            const btnDetail = document.createElement('button')
+            btnDetail.className = 'btn btn-sm btn-gray'
+            btnDetail.textContent = 'Chi tiết'
+            btnDetail.onclick = () => { window.location.href = 'trip-detail.html?id=' + trip.id }
+            tdAction.appendChild(btnDetail)
+            tr.appendChild(tdAction)
+            tbody.appendChild(tr)
+        })
+    }
+
+    // ── Auth ──────────────────────────────────────────────────────────
     async function logout() {
-        await sb.auth.signOut();
-        window.location.href = 'bai10.html';
+        await sb.auth.signOut()
+        window.location.href = 'bai10.html'
     }
 
     async function initPage() {
-        const auth = await requireRole(sb, 'driver');
-        if (!auth) return;
-        currentUser = auth.user;
-        currentProfileId = auth.profile.id;
-        loadMyTrips();
+        const auth = await requireRole(sb, 'driver')
+        if (!auth) return
+        currentUser = auth.user
+        currentProfileId = auth.profile.id
+        loadActiveTrips()
     }
 
-    setupLogoutListener(sb);
-    initPage();
-</script>
-    <div class="toast" id="toast"></div>
-    </body>
+    setupLogoutListener(sb)
+    initPage()
+    </script>
+</body>
 </html>
