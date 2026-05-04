@@ -74,7 +74,10 @@ function setupLogoutListener(sb) {
 
 function formatDate(dateStr) {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
+    // Normalize: bỏ timezone offset, chỉ lấy phần datetime
+    const clean = dateStr.replace(/\+\d{2}:\d{2}$/, '').replace('T', ' ');
+    const d = new Date(clean);
+    if (isNaN(d.getTime())) return dateStr;
     const hh = String(d.getHours()).padStart(2, '0');
     const mm = String(d.getMinutes()).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
