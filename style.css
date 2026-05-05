@@ -284,9 +284,11 @@ tr:hover td { background: #f9f9fc; }
     font-weight: 600;
     display: inline-block;
 }
-.status-hoat_dong { background: #d4edda; color: #155724; }
-.status-bao_duong { background: #fff3cd; color: #856404; }
-.status-tam_nghi  { background: #f8d7da; color: #721c24; }
+.status-hoat_dong  { background: #d4edda; color: #155724; }
+.status-bao_duong  { background: #fff3cd; color: #856404; }
+.status-tam_nghi   { background: #f8d7da; color: #721c24; }
+.status-dang_chay  { background: #fff3cd; color: #856404; }
+.status-hoan_thanh { background: #d4edda; color: #155724; }
 
 /* --- MESSAGE / ALERT --- */
 .msg {
