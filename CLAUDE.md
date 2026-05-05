@@ -27,8 +27,9 @@ Không có build step, không có test runner, không có lint. Quy trình:
 
 ### Page roles
 - `bai10.html` — landing page + Google OAuth + role redirect. Có `<style>` block riêng (~220 dòng) cho hero/stats/features layout (KHÔNG dùng `.card` chuẩn).
-- `owner-dashboard.html` — owner xem báo cáo trips, filter tháng, realtime subscribe `trips`. Header có nav đến driver/vehicles.
-- `driver-page.html` — driver quản lý chuyến theo flow mới: 2 tab ("Đang chạy" / "Hoàn thành"), tạo chuyến → thêm nhiều chi phí phát sinh → xác nhận hoàn thành.
+- `owner-dashboard.html` — owner xem báo cáo trips, filter tháng, realtime subscribe `trips`. Header có nav đến driver/vehicles. Bảng trips có cột "Chi tiết" link đến `trip-detail.html`.
+- `trip-detail.html` — trang shared cho cả driver và owner xem chi tiết 1 chuyến. Auth dùng `getSession() + getUserProfile()` (không dùng `requireRole`). Driver chỉ xem được trip của mình; owner xem được tất cả. Driver + dang_chay: có thể thêm/sửa/xóa chi phí inline. Hiển thị GPS links nếu có tọa độ.
+- `driver-page.html` — driver quản lý chuyến theo flow mới: 2 tab ("Đang chạy" / "Hoàn thành"), tạo chuyến → thêm nhiều chi phí phát sinh (có GPS bắt buộc) → xác nhận hoàn thành (có confirm modal).
 - `driver.html` — owner quản lý tài xế, tính lương theo tháng, export Excel/PDF.
 - `vehicles.html` — owner quản lý xe + bảo dưỡng inline.
 - `style.css` — design system shared, dùng CSS variables.
@@ -45,9 +46,9 @@ getUserProfile(sb, email) → { id, role } hoặc null
 requireRole(sb, role)   → đảm bảo session + role khớp; redirect bai10 nếu không.
                           Trả { user, profile } hoặc null.
 setupLogoutListener(sb) → tự redirect bai10 khi logout từ tab khác.
+getLocation()           → Promise<{ lat, lng }> — dùng Geolocation API, timeout 10s.
+                          Reject với Error nếu thiết bị không hỗ trợ hoặc user từ chối GPS.
 ```
-
-> **Lưu ý**: `shared.js` hiện có 2 định nghĩa `formatDate` — định nghĩa thứ hai (dòng 75) ghi đè định nghĩa đầu (dòng 17, dead code). Nếu sửa `formatDate`, chỉ sửa định nghĩa thứ hai.
 
 Mỗi page admin (driver/vehicles/owner-dashboard) bắt đầu với:
 ```js
@@ -101,7 +102,7 @@ function showToast(msg, type = '') {
 
 ### driver-page.html — patterns đặc thù
 
-Page dùng 3 biến state toàn cục:
+Page dùng 2 biến state toàn cục:
 ```js
 let activeFormId = null        // formId của form đang mở, null nếu không có
 let activeReceiptFile = null   // File ảnh đang được chọn trong form active
@@ -124,20 +125,25 @@ const loai = form.querySelector('[data-field="loai"]').value
 
 **Chi phí reload** — sau mỗi insert/update/delete `chi_phi_chuyen`, gọi `reloadTripChiPhi(tripId)` để fetch `trips.chi_phi` mới nhất từ DB (DB trigger tự sync).
 
+**GPS bắt buộc khi thêm chi phí** — `submitAddExpense` gọi `getLocation()` trước upload. Thứ tự: validate → GPS (disable button, fail → re-enable + return) → upload ảnh → insert với `lat/lng`. Nếu GPS fail, upload không chạy.
+
 ## Database
 
 ```
 users          (id, email, full_name, sdt, role)                        -- role: 'owner' | 'driver'
 trips          (id, ngay_bat_dau, ngay_ket_thuc, tuyen_duong, doanh_thu,
                 chi_phi, luong_chuyen, tam_ung, hoan_ung, tai_xe_id,
-                ghi_chu, trang_thai, anh_hoa_don)
+                ghi_chu, trang_thai, anh_hoa_don,
+                lat_bat_dau, lng_bat_dau, lat_ket_thuc, lng_ket_thuc)
                 -- ngay_bat_dau/ngay_ket_thuc: timestamptz
                 -- trang_thai: 'dang_chay' | 'hoan_thanh'
                 -- anh_hoa_don: legacy, không còn dùng trong flow mới
                 -- chi_phi: được sync tự động bởi DB trigger từ chi_phi_chuyen
-chi_phi_chuyen (id, trip_id, loai, mo_ta, so_tien, anh_url, created_at)
+                -- lat/lng fields: nullable, lưu tọa độ GPS khi tạo/hoàn thành chuyến
+chi_phi_chuyen (id, trip_id, loai, mo_ta, so_tien, anh_url, created_at, lat, lng)
                 -- loai: 'xang' | 'sua_xe' | 'bai_xe' | 'khac'
                 -- anh_url: public URL từ storage bucket 'receipts'
+                -- lat/lng: nullable, tọa độ GPS khi thêm chi phí
 tam_ung_thang  (id, tai_xe_id, thang, so_tien, ghi_chu)                -- thang format: 'YYYY-MM'
 xe             (id, bien_so, loai_xe, nam_sx, trang_thai, tai_xe_id)   -- trang_thai: 'hoat_dong' | 'bao_duong' | 'tam_nghi'
 bao_duong      (id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)     -- loai: 'hong_hoc' | 'linh_kien' | 'lop_xe' | 'dinh_ky'
@@ -167,6 +173,7 @@ bao_duong      (id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)     -- loai: 
 
 ## Recent changes log
 
+- Bài 32 (2026-05-05): GPS tracking — thêm `getLocation()` vào `shared.js`. `submitAddExpense` trong `driver-page.html` bắt buộc lấy GPS trước upload, lưu `lat/lng` vào `chi_phi_chuyen`. Thêm cột GPS vào schema `trips` và `chi_phi_chuyen`. Tạo `trip-detail.html` — trang shared driver/owner xem chi tiết chuyến, driver có thể edit chi phí inline khi dang_chay. `owner-dashboard.html`: bỏ cột Tạm ứng/Hoàn ứng/Còn lại/Ảnh HĐ, thêm cột Chi tiết link đến `trip-detail.html`. `driver-page.html`: confirm modal trước khi hoàn thành chuyến, nút "Thêm chi phí" full-width symmetric. Xóa dead code `formatDate` đầu tiên trong `shared.js`.
 - Bài 31 (2026-05-05): Refactor `driver-page.html` — multi-expense trip tracking. 2 tab Đang chạy/Hoàn thành, tạo chuyến mới, thêm/sửa/xóa chi phí per trip, xác nhận hoàn thành với doanh thu thực tế. Thêm bảng `chi_phi_chuyen`. Đổi `ngay` → `ngay_bat_dau` (timestamptz) trên `trips`, thêm `trang_thai`/`ngay_ket_thuc`. Update `formatDate()` xuất `HH:MM - DD/MM/YY`. Fix filter tháng dùng timestamptz trong `owner-dashboard.html` và `driver.html`.
 - Bài 30 (2026-05-03): Thay toàn bộ `alert()` bằng `showToast()` trong 4 page. Refactor `driver-page.html` — bỏ `showMsg()`/`#msg` div, thêm `resetForm()`.
 - Bài 29 (2026-05-03): Tạo `shared.js`, fix lệch ID Auth/users, đồng bộ format tiền tệ, thêm nav `vehicles.html` ở header owner-dashboard, `setupLogoutListener` cho mọi admin page.

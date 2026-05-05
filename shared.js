@@ -14,13 +14,6 @@ function formatMoney(n) {
     return (Number.isFinite(amount) ? amount : 0).toLocaleString('vi-VN') + ' đ'
 }
 
-function formatDate(dateStr) {
-    if (!dateStr) return ''
-    const d = new Date(dateStr)
-    if (isNaN(d.getTime())) return ''
-    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(2)}`
-}
-
 // === Auth ===
 async function getUserRole(sb, email) {
     const { data, error } = await sb
