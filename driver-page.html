@@ -392,6 +392,17 @@
             showToast('Vui lòng nhập số tiền hợp lệ', 'error')
             return
         }
+        const btnSave = form.querySelector('.btn')
+        showToast('Đang lấy vị trí GPS...')
+        btnSave.disabled = true
+        let loc
+        try {
+            loc = await getLocation()
+        } catch (e) {
+            showToast(e.message, 'error')
+            btnSave.disabled = false
+            return
+        }
         let anh_url = null
         if (activeReceiptFile) {
             try {
@@ -399,11 +410,13 @@
                 anh_url = await uploadReceipt(activeReceiptFile, currentProfileId)
             } catch (e) {
                 showToast('Lỗi upload ảnh: ' + e.message, 'error')
+                btnSave.disabled = false
                 return
             }
         }
         const { error } = await sb.from('chi_phi_chuyen').insert({
-            trip_id: tripId, loai, mo_ta: mo_ta || null, so_tien, anh_url
+            trip_id: tripId, loai, mo_ta: mo_ta || null, so_tien, anh_url,
+            lat: loc.lat, lng: loc.lng
         })
         if (error) { showToast('Lỗi: ' + error.message, 'error'); return }
         form.querySelector('[data-field="so_tien"]').value = ''
