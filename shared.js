@@ -85,3 +85,16 @@ function formatDate(dateStr) {
     const yy = String(d.getFullYear()).slice(2);
     return `${hh}:${mm} - ${dd}/${mo}/${yy}`;
 }
+function getLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('Thiết bị không hỗ trợ GPS'))
+            return
+        }
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            err => reject(new Error('Không lấy được vị trí. Vui lòng bật GPS và thử lại.')),
+            { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
+        )
+    })
+}
