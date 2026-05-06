@@ -198,6 +198,25 @@
         card.appendChild(infoRow('Kết thúc', trip.ngay_ket_thuc ? formatDate(trip.ngay_ket_thuc) : '—'))
         if (trip.ghi_chu) card.appendChild(infoRow('Ghi chú', trip.ghi_chu))
 
+        // GPS links
+        function gpsLink(label, lat, lng) {
+            if (!lat || !lng) return null
+            const a = document.createElement('a')
+            a.href = `https://www.google.com/maps?q=${lat},${lng}`
+            a.target = '_blank'
+            a.style.cssText = 'display:inline-block;margin-top:6px;margin-right:8px;color:var(--primary);font-size:0.9em;text-decoration:none'
+            a.textContent = `📍 ${label}`
+            return a
+        }
+
+        const gpsRow = document.createElement('div')
+        gpsRow.style.marginTop = '10px'
+        const aStart = gpsLink('Bắt đầu', trip.lat_bat_dau, trip.lng_bat_dau)
+        const aEnd   = gpsLink('Kết thúc', trip.lat_ket_thuc, trip.lng_ket_thuc)
+        if (aStart) gpsRow.appendChild(aStart)
+        if (aEnd)   gpsRow.appendChild(aEnd)
+        if (aStart || aEnd) card.appendChild(gpsRow)
+
         container.appendChild(card)
     }
 
@@ -316,6 +335,15 @@
                     photoLink.textContent = '📷'
                     photoLink.style.textDecoration = 'none'
                     actions.appendChild(photoLink)
+                }
+
+                if (exp.lat && exp.lng) {
+                    const gpsBtn = document.createElement('a')
+                    gpsBtn.href = `https://www.google.com/maps?q=${exp.lat},${exp.lng}`
+                    gpsBtn.target = '_blank'
+                    gpsBtn.textContent = '📍'
+                    gpsBtn.style.textDecoration = 'none'
+                    actions.appendChild(gpsBtn)
                 }
 
                 if (canEditExpenses()) {

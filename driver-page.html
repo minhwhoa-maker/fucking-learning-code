@@ -479,6 +479,15 @@
                 actions.appendChild(photoLink)
             }
 
+            if (exp.lat && exp.lng) {
+                const gpsBtn = document.createElement('a')
+                gpsBtn.href = `https://www.google.com/maps?q=${exp.lat},${exp.lng}`
+                gpsBtn.target = '_blank'
+                gpsBtn.textContent = '📍'
+                gpsBtn.style.textDecoration = 'none'
+                actions.appendChild(gpsBtn)
+            }
+
             const editBtn = document.createElement('button')
             editBtn.className = 'btn btn-sm btn-gray'
             editBtn.textContent = '✏️'
