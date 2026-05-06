@@ -172,6 +172,7 @@
 
                 hideStatus()
                 renderTrips(trips)
+                saveChatContext(trips, totalDT, totalCP, totalluong)
             }
 
             function clearFilter() {
@@ -210,7 +211,117 @@
             window.addEventListener('beforeunload', () => {
                 if (tripsChannel) sb.removeChannel(tripsChannel)
             })
+
+            // ── Chatbot state ──────────────────────────────────────
+            const ANTHROPIC_API_KEY = 'YOUR_API_KEY_HERE'
+            let chatOpen = false
+            let messages = []
+            let tripsData = []
+            let totalsData = {}
+
+            function saveChatContext(trips, dt, cp, luong) {
+                tripsData = trips
+                totalsData = { tong_doanh_thu: dt, tong_chi_phi: cp, tong_loi_nhuan: dt - cp, tong_luong: luong }
+            }
+
+            function toggleChat() {
+                chatOpen = !chatOpen
+                document.getElementById('chat-panel').classList.toggle('hidden', !chatOpen)
+                document.getElementById('chat-fab').textContent = chatOpen ? '✕' : '💬'
+                if (chatOpen && messages.length === 0) {
+                    appendBubble('assistant', 'Xin chào! Tôi có thể phân tích dữ liệu vận tải cho bạn. Hỏi gì đi 👇')
+                }
+            }
+
+            function appendBubble(role, text) {
+                const div = document.createElement('div')
+                div.className = 'chat-bubble ' + role
+                div.textContent = text
+                const container = document.getElementById('chat-messages')
+                container.appendChild(div)
+                container.scrollTop = container.scrollHeight
+            }
+
+            function sendSuggested(btn) {
+                document.getElementById('chat-suggest').style.display = 'none'
+                document.getElementById('chat-input').value = btn.textContent
+                sendMessage()
+            }
+
+            async function sendMessage() {
+                const input = document.getElementById('chat-input')
+                const text = input.value.trim()
+                if (!text) return
+                input.value = ''
+
+                appendBubble('user', text)
+                messages.push({ role: 'user', content: text })
+
+                const thinkingDiv = document.createElement('div')
+                thinkingDiv.className = 'chat-bubble assistant thinking'
+                thinkingDiv.textContent = '...'
+                document.getElementById('chat-messages').appendChild(thinkingDiv)
+
+                const context = {
+                    thang_loc: document.getElementById('filter-month').value || 'tất cả',
+                    ...totalsData,
+                    danh_sach_chuyen: tripsData.map(t => ({
+                        ngay: t.ngay_bat_dau,
+                        tuyen: t.tuyen_duong,
+                        doanh_thu: t.doanh_thu,
+                        chi_phi: t.chi_phi,
+                        loi_nhuan: toNumber(t.doanh_thu) - toNumber(t.chi_phi),
+                        luong: t.luong_chuyen
+                    }))
+                }
+
+                const systemPrompt = `Mày là trợ lý phân tích vận tải cho chủ xe. Trả lời ngắn gọn, súc tích bằng tiếng Việt. Dữ liệu hiện tại: ${JSON.stringify(context)}`
+
+                try {
+                    const res = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 1000,
+                            system: systemPrompt,
+                            messages: messages
+                        })
+                    })
+                    const data = await res.json()
+                    const reply = data.content?.[0]?.text || 'Không có phản hồi'
+                    thinkingDiv.remove()
+                    appendBubble('assistant', reply)
+                    messages.push({ role: 'assistant', content: reply })
+                } catch (err) {
+                    thinkingDiv.remove()
+                    appendBubble('assistant', '❌ Lỗi kết nối API')
+                    console.error(err)
+                }
+            }
         </script>
     <div class="toast" id="toast"></div>
+
+    <!-- AI Chatbot -->
+    <button id="chat-fab" onclick="toggleChat()">💬</button>
+
+    <div id="chat-panel" class="chat-panel hidden">
+      <div class="chat-header">
+        <span>🤖 AI Phân tích</span>
+        <button onclick="toggleChat()">✕</button>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-suggest" id="chat-suggest">
+        <button onclick="sendSuggested(this)">Tổng kết tháng này</button>
+        <button onclick="sendSuggested(this)">Chuyến nào lợi nhuận cao nhất?</button>
+        <button onclick="sendSuggested(this)">So sánh tháng này vs tháng trước</button>
+        <button onclick="sendSuggested(this)">Tài xế nào làm tốt nhất?</button>
+      </div>
+      <div class="chat-input-row">
+        <textarea id="chat-input" placeholder="Hỏi về dữ liệu vận tải..." rows="2"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+        <button onclick="sendMessage()">➤</button>
+      </div>
+    </div>
     </body>
 </html>
