@@ -213,7 +213,6 @@
             })
 
             // ── Chatbot state ──────────────────────────────────────
-            const ANTHROPIC_API_KEY = ""
             let chatOpen = false
             let messages = []
             let tripsData = []
@@ -307,7 +306,11 @@
 
     <div id="chat-panel" class="chat-panel hidden">
       <div class="chat-header">
-        <span>🤖 AI Phân tích</span>
+        <div class="chat-header-avatar">🤖</div>
+        <div class="chat-header-info">
+          <div class="name">AI Phân tích</div>
+          <div class="status">● Trực tuyến</div>
+        </div>
         <button onclick="toggleChat()">✕</button>
       </div>
       <div class="chat-messages" id="chat-messages"></div>
