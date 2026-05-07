@@ -226,6 +226,7 @@
             function toggleChat() {
                 chatOpen = !chatOpen
                 document.getElementById('chat-panel').classList.toggle('hidden', !chatOpen)
+                document.getElementById('chat-fab').style.display = chatOpen ? 'none' : 'flex'
                 document.getElementById('chat-fab').textContent = chatOpen ? '✕' : '💬'
                 if (chatOpen && messages.length === 0) {
                     appendBubble('assistant', 'Xin chào! Tôi có thể phân tích dữ liệu vận tải cho bạn. Hỏi gì đi 👇')

@@ -16,3 +16,4 @@ export default async function handler(req, res) {
     const data = await response.json()
     res.status(response.status).json(data)
 }
+console.log('KEY EXISTS:', !!process.env.ANTHROPIC_API_KEY)
