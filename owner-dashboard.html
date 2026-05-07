@@ -240,6 +240,7 @@
                 const container = document.getElementById('chat-messages')
                 container.appendChild(div)
                 container.scrollTop = container.scrollHeight
+                return div
             }
 
             function sendSuggested(btn) {
@@ -257,11 +258,6 @@
                 appendBubble('user', text)
                 messages.push({ role: 'user', content: text })
 
-                const thinkingDiv = document.createElement('div')
-                thinkingDiv.className = 'chat-bubble assistant thinking'
-                thinkingDiv.textContent = '...'
-                document.getElementById('chat-messages').appendChild(thinkingDiv)
-
                 const context = {
                     thang_loc: document.getElementById('filter-month').value || 'tất cả',
                     ...totalsData,
@@ -277,25 +273,58 @@
 
                 const systemPrompt = `Mày là trợ lý phân tích vận tải cho chủ xe. Trả lời ngắn gọn, súc tích bằng tiếng Việt. Dữ liệu hiện tại: ${JSON.stringify(context)}`
 
+                const botBubble = appendBubble('assistant', '...')
+
                 try {
                     const res = await fetch('/api/chat', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json'},
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             model: 'claude-sonnet-4-20250514',
                             max_tokens: 1000,
                             system: systemPrompt,
-                            messages: messages
+                            messages
                         })
                     })
-                    const data = await res.json()
-                    const reply = data.content?.[0]?.text || 'Không có phản hồi'
-                    thinkingDiv.remove()
-                    appendBubble('assistant', reply)
-                    messages.push({ role: 'assistant', content: reply })
+
+                    if (!res.ok) {
+                        botBubble.textContent = '❌ Lỗi kết nối API'
+                        return
+                    }
+
+                    const reader = res.body.getReader()
+                    const decoder = new TextDecoder()
+                    const chatMessages = document.getElementById('chat-messages')
+                    let buffer = ''
+                    let fullText = ''
+
+                    botBubble.textContent = ''
+
+                    while (true) {
+                        const { done, value } = await reader.read()
+                        if (done) break
+
+                        buffer += decoder.decode(value, { stream: true })
+                        const lines = buffer.split('\n')
+                        buffer = lines.pop()
+
+                        for (const line of lines) {
+                            if (!line.startsWith('data: ')) continue
+                            try {
+                                const json = JSON.parse(line.slice(6))
+                                if (json.type === 'content_block_delta' && json.delta?.type === 'text_delta') {
+                                    fullText += json.delta.text
+                                    botBubble.textContent = fullText
+                                    chatMessages.scrollTop = chatMessages.scrollHeight
+                                }
+                            } catch {}
+                        }
+                    }
+
+                    if (fullText) messages.push({ role: 'assistant', content: fullText })
+                    else if (!botBubble.textContent) botBubble.textContent = 'Không có phản hồi'
                 } catch (err) {
-                    thinkingDiv.remove()
-                    appendBubble('assistant', '❌ Lỗi kết nối API')
+                    botBubble.textContent = '❌ Lỗi kết nối API'
                     console.error(err)
                 }
             }

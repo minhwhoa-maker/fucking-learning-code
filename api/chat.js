@@ -3,17 +3,27 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' })
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
             'x-api-key': process.env.ANTHROPIC_API_KEY,
             'anthropic-version': '2023-06-01',
             'content-type': 'application/json'
         },
-        body: JSON.stringify(req.body)
+        body: JSON.stringify({ ...req.body, stream: true })
     })
 
-    const data = await response.json()
-    res.status(response.status).json(data)
+    if (!upstream.ok) {
+        const err = await upstream.json()
+        return res.status(upstream.status).json(err)
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+
+    for await (const chunk of upstream.body) {
+        res.write(chunk)
+    }
+    res.end()
 }
-console.log('KEY EXISTS:', !!process.env.ANTHROPIC_API_KEY)
