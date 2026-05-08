@@ -37,11 +37,11 @@ export default async function handler(req, res) {
     // Check notify settings — skip if owner turned off this type
     const { data: settings } = await sb
         .from('notify_settings')
-        .select('new_trip, complete, expense')
+        .select('notify_new_trip, notify_complete, notify_expense')
         .eq('owner_id', owner_id)
         .single()
 
-    if (settings && settings[type] === false) {
+    if (settings && settings[`notify_${type}`] === false) {
         return res.status(200).json({ skipped: true })
     }
 
