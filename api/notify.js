@@ -1,5 +1,5 @@
-const { createClient } = require('@supabase/supabase-js')
-const webpush = require('web-push')
+import { createClient } from '@supabase/supabase-js'
+import webpush from 'web-push'
 
 webpush.setVapidDetails(
     process.env.VAPID_SUBJECT,
@@ -22,7 +22,7 @@ const NOTIFY_CONTENT = {
     })
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' })
     }
