@@ -1,6 +1,8 @@
 {
+  "name": "van-tai-app",
+  "version": "1.0.0",
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.3",
-    "web-push": "^3.6.7"
+    "@supabase/supabase-js": "^2.0.0",
+    "web-push": "^3.6.0"
   }
 }
