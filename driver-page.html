@@ -214,6 +214,7 @@
     }
 
     function notifyOwner(type, payload) {
+        console.log('notifyOwner', type, currentOwnerId)
         if (!currentOwnerId) return
         fetch('/api/notify', {
             method: 'POST',
