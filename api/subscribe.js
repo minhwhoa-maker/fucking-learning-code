@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
     const { error } = await sb
         .from('push_subscriptions')
-        .upsert({ user_id, subscription }, { onConflict: 'user_id' })
+        .upsert({ user_id, subscription_json: subscription }, { onConflict: 'user_id' })
 
     if (error) {
         return res.status(500).json({ error: error.message })
