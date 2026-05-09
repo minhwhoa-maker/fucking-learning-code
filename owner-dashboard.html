@@ -68,21 +68,21 @@
                 <div class="notify-row">
                     <span>🚛 Chuyến mới bắt đầu</span>
                     <label class="toggle">
-                        <input type="checkbox" id="notif-new-trip" onchange="saveNotifySetting('new_trip', this.checked)">
+                        <input type="checkbox" id="notif-new-trip" onchange="saveNotifySetting('notify_new_trip', this.checked)">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
                 <div class="notify-row">
                     <span>✅ Chuyến hoàn thành</span>
                     <label class="toggle">
-                        <input type="checkbox" id="notif-complete" onchange="saveNotifySetting('complete', this.checked)">
+                        <input type="checkbox" id="notif-complete" onchange="saveNotifySetting('notify_complete', this.checked)">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
                 <div class="notify-row">
                     <span>💰 Chi phí mới</span>
                     <label class="toggle">
-                        <input type="checkbox" id="notif-expense" onchange="saveNotifySetting('expense', this.checked)">
+                        <input type="checkbox" id="notif-expense" onchange="saveNotifySetting('notify_expense', this.checked)">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
@@ -134,17 +134,17 @@
             async function loadNotifySettings() {
                 const { data } = await sb
                     .from('notify_settings')
-                    .select('new_trip, complete, expense')
-                    .eq('owner_id', currentOwnerProfileId)
-                    .single()
-                document.getElementById('notif-new-trip').checked  = data ? data.new_trip  : true
-                document.getElementById('notif-complete').checked   = data ? data.complete   : true
-                document.getElementById('notif-expense').checked    = data ? data.expense    : true
+                    .select('notify_new_trip, notify_complete, notify_expense')
+                    .eq('user_id', currentOwnerProfileId)
+                    .maybeSingle()
+                document.getElementById('notif-new-trip').checked = data ? data.notify_new_trip : true
+                document.getElementById('notif-complete').checked  = data ? data.notify_complete  : true
+                document.getElementById('notif-expense').checked   = data ? data.notify_expense   : true
             }
 
             async function saveNotifySetting(key, value) {
                 await sb.from('notify_settings')
-                    .upsert({ owner_id: currentOwnerProfileId, [key]: value }, { onConflict: 'owner_id' })
+                    .upsert({ user_id: currentOwnerProfileId, [key]: value }, { onConflict: 'user_id' })
             }
 
             function toNumber(value) {

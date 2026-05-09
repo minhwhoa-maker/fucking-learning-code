@@ -27,14 +27,14 @@ Không có build step, không có test runner, không có lint. Quy trình:
 
 ### Page roles
 - `bai10.html` — landing page + Google OAuth + role redirect. Có `<style>` block riêng (~220 dòng) cho hero/stats/features layout (KHÔNG dùng `.card` chuẩn).
-- `owner-dashboard.html` — owner xem báo cáo trips, filter tháng, realtime subscribe `trips`. Header có nav đến driver/vehicles. Bảng trips có cột "Chi tiết" link đến `trip-detail.html`. Có floating AI chatbot (nút FAB góc phải) gọi qua `/api/chat`. Có card "Cài đặt thông báo" với 3 toggle switch (new_trip / complete / expense), load/save qua `notify_settings` table. `setupPushNotifications(userId)` chạy mỗi lần login để đăng ký / tái sử dụng Web Push subscription.
+- `owner-dashboard.html` — owner xem báo cáo trips, filter tháng, realtime subscribe `trips`. Header có nav đến driver/vehicles. Bảng trips có cột "Chi tiết" link đến `trip-detail.html`. Có floating AI chatbot (nút FAB góc phải) gọi qua `/api/chat`. Có card "Cài đặt thông báo" với 3 toggle switch (notify_new_trip / notify_complete / notify_expense), load/save qua `notify_settings` table. `setupPushNotifications(userId)` chạy mỗi lần login để đăng ký / tái sử dụng Web Push subscription.
 - `trip-detail.html` — trang shared cho cả driver và owner xem chi tiết 1 chuyến. Auth dùng `getSession() + getUserProfile()` (không dùng `requireRole`). Driver chỉ xem được trip của mình; owner xem được tất cả. Driver + dang_chay: có thể thêm/sửa/xóa chi phí inline. Hiển thị GPS links nếu có tọa độ.
 - `driver-page.html` — driver quản lý chuyến theo flow mới: 2 tab ("Đang chạy" / "Hoàn thành"), tạo chuyến → thêm nhiều chi phí phát sinh (có GPS bắt buộc) → xác nhận hoàn thành (có confirm modal).
 - `driver.html` — owner quản lý tài xế, tính lương theo tháng, export Excel/PDF.
 - `vehicles.html` — owner quản lý xe + bảo dưỡng inline.
 - `style.css` — design system shared, dùng CSS variables.
 - `shared.js` — JS utilities shared (xem dưới).
-- `sw.js` + `manifest.json` — PWA, chỉ register từ `bai10.html`. Khi deploy thay đổi cho các file được cache (bai10, style.css, manifest, icons), phải bump `CACHE_NAME` trong `sw.js` (hiện tại `van-tai-v4`) để invalidate cache cũ. Có push handler (hiện notification) + notificationclick handler (focus tab cũ hoặc mở tab mới tới URL trong `notification.data.url`).
+- `sw.js` + `manifest.json` — PWA, chỉ register từ `bai10.html`. Khi deploy thay đổi cho các file được cache (bai10, style.css, manifest, icons), phải bump `CACHE_NAME` trong `sw.js` (hiện tại `van-tai-v5`) để invalidate cache cũ. Có push handler (hiện notification) + notificationclick handler (focus tab cũ hoặc mở tab mới tới URL trong `notification.data.url`).
 
 ### shared.js (BẮT BUỘC dùng cho mọi page mới)
 ```
@@ -126,7 +126,7 @@ let driverMapData = {} // { [users.id]: full_name } — build từ users table m
 
 **`api/notify.js`** — nhận POST `{ owner_id, type, payload }`. Kiểm tra `notify_settings` (skip nếu type bị tắt), lấy subscription từ `push_subscriptions`, gửi push qua `web-push`. Tự xóa subscription nếu nhận HTTP 410 (expired). Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`.
 
-`type` hợp lệ: `'new_trip'` | `'complete'` | `'expense'`. `package.json` khai báo deps `web-push` + `@supabase/supabase-js` để Vercel cài khi deploy.
+`type` hợp lệ: `'new_trip'` | `'complete'` | `'expense'`. `package.json` khai báo `"type": "module"` + deps `web-push` + `@supabase/supabase-js` để Vercel cài khi deploy. Các file `api/*.js` dùng ESM (`import`/`export default`).
 
 ### Realtime subscriptions
 `owner-dashboard.html` subscribe channel `trips-changes` cho table `trips`. Channel được lưu trong `tripsChannel` và cleanup ở `beforeunload` qua `sb.removeChannel(tripsChannel)`.
@@ -186,7 +186,7 @@ tam_ung_thang  (id, tai_xe_id, thang, so_tien, ghi_chu)                -- thang 
 xe             (id, bien_so, loai_xe, nam_sx, trang_thai, tai_xe_id)   -- trang_thai: 'hoat_dong' | 'bao_duong' | 'tam_nghi'
 bao_duong      (id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)     -- loai: 'hong_hoc' | 'linh_kien' | 'lop_xe' | 'dinh_ky'
 push_subscriptions (user_id uuid PK, subscription jsonb)               -- Web Push subscription object; upsert on conflict user_id
-notify_settings    (owner_id uuid PK, new_trip bool, complete bool, expense bool)
+notify_settings    (owner_id uuid PK, notify_new_trip bool, notify_complete bool, notify_expense bool)
                                                                         -- NULL row = tất cả bật; chỉ cần upsert khi owner thay đổi
 ```
 
@@ -214,6 +214,7 @@ notify_settings    (owner_id uuid PK, new_trip bool, complete bool, expense bool
 
 ## Recent changes log
 
+- Bài 39 (2026-05-08): Bugfixes — `driver-page.html`: thêm `btnSave.disabled = false` sau `closeActiveForm()` trong `submitAddExpense` (success path). `sw.js`: bump CACHE_NAME `van-tai-v4` → `van-tai-v5`. `package.json`: thêm `"type": "module"`, `name`, `version`. `api/notify.js`: fix column names `notify_settings` thành `notify_new_trip/notify_complete/notify_expense`, check `settings[\`notify_${type}\`]` thay vì `settings[type]`.
 - Bài 38 (2026-05-08): Web Push Notifications — `api/subscribe.js` (lưu subscription), `api/notify.js` (gửi push qua web-push, check notify_settings, xóa subscription 410). `sw.js`: push handler (showNotification với data.url) + notificationclick (focus tab cũ hoặc openWindow). `owner-dashboard.html`: `setupPushNotifications()` + `urlBase64ToUint8Array()` + notify settings card (3 toggle switches). `driver-page.html`: `notifyOwner()` helper, gọi sau tạo chuyến/thêm chi phí/hoàn thành. `package.json` thêm `web-push`. Vercel env vars cần thêm: `SUPABASE_SERVICE_KEY`, `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`.
 - Bài 37 (2026-05-08): Fix chatbot context thiếu tên tài xế — `loadTrips()` fetch thêm `users` table build `driverMap { id: full_name }`. `saveChatContext()` nhận thêm param `driverMap`, lưu vào global `driverMapData`. Context mapping thêm `tai_xe: driverMapData[t.tai_xe_id] || t.tai_xe_id` thay vì UUID.
 - Bài 36 (2026-05-07): Streaming chatbot — `api/chat.js` inject `stream: true`, check `upstream.ok`, pipe SSE qua `for await...of` (thay `WritableStream` không tồn tại trong Node runtime). `owner-dashboard.html`: `sendMessage` đọc SSE stream thay vì `response.json()`, parse `content_block_delta`/`text_delta` events, tích lũy `fullText` rồi push vào `messages` sau khi xong. `appendBubble` trả về element để update dần.
