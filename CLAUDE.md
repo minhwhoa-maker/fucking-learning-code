@@ -30,8 +30,8 @@ Không có build step, không có test runner, không có lint. Quy trình:
 - `owner-dashboard.html` — owner xem báo cáo trips, filter tháng, realtime subscribe `trips`. Header có nav đến driver/vehicles. Bảng trips có cột "Chi tiết" link đến `trip-detail.html`. Có floating AI chatbot (nút FAB góc phải) gọi qua `/api/chat`. Có card "Cài đặt thông báo" với 3 toggle switch (notify_new_trip / notify_complete / notify_expense), load/save qua `notify_settings` table. `setupPushNotifications(userId)` chạy mỗi lần login để đăng ký / tái sử dụng Web Push subscription.
 - `trip-detail.html` — trang shared cho cả driver và owner xem chi tiết 1 chuyến. Auth dùng `getSession() + getUserProfile()` (không dùng `requireRole`). Driver chỉ xem được trip của mình; owner xem được tất cả. Driver + dang_chay: có thể thêm/sửa/xóa chi phí inline. Hiển thị GPS links nếu có tọa độ.
 - `driver-page.html` — driver quản lý chuyến theo flow mới: 2 tab ("Đang chạy" / "Hoàn thành"), tạo chuyến → thêm nhiều chi phí phát sinh (có GPS bắt buộc) → xác nhận hoàn thành (có confirm modal).
-- `driver.html` — owner quản lý tài xế, tính lương theo tháng, export Excel/PDF.
-- `vehicles.html` — owner quản lý xe + bảo dưỡng inline.
+- `driver.html` — owner quản lý tài xế, tính lương theo tháng, export Excel/PDF. Click vào tên tài xế → modal xem danh sách chuyến (filter theo tháng đang chọn). `addDriver()` check trùng email + SĐT qua `maybeSingle()` trước INSERT.
+- `vehicles.html` — owner quản lý xe + bảo dưỡng inline. Click biển số → modal đổi tài xế (kiểm tra tài xế đang lái xe khác). Nút "📋 Chuyến" → expand row xem trips của xe (filter theo `#trips-filter-month`). `trang_thai` tự set `hoat_dong`/`tam_nghi` theo `tai_xe_id`. `nam_sx` là DB column nhưng ẩn khỏi UI. `tai_xe_id` unique được enforce ở app, không có DB constraint.
 - `style.css` — design system shared, dùng CSS variables.
 - `shared.js` — JS utilities shared (xem dưới).
 - `sw.js` + `manifest.json` — PWA, chỉ register từ `bai10.html`. Khi deploy thay đổi cho các file được cache (bai10, style.css, manifest, icons), phải bump `CACHE_NAME` trong `sw.js` (hiện tại `van-tai-v5`) để invalidate cache cũ. Có push handler (hiện notification) + notificationclick handler (focus tab cũ hoặc mở tab mới tới URL trong `notification.data.url`).
@@ -125,6 +125,8 @@ chi_phi_chuyen (id, trip_id, loai, mo_ta, so_tien, anh_url, created_at, lat, lng
                 -- lat/lng: nullable, tọa độ GPS khi thêm chi phí
 tam_ung_thang  (id, tai_xe_id, thang, so_tien, ghi_chu)                -- thang format: 'YYYY-MM'
 xe             (id, bien_so, loai_xe, nam_sx, trang_thai, tai_xe_id)   -- trang_thai: 'hoat_dong' | 'bao_duong' | 'tam_nghi'
+                -- nam_sx: tồn tại trong DB nhưng ẩn khỏi UI vehicles.html
+                -- tai_xe_id: không có UNIQUE constraint trong DB, app tự enforce
 bao_duong      (id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)     -- loai: 'hong_hoc' | 'linh_kien' | 'lop_xe' | 'dinh_ky'
 push_subscriptions (user_id uuid PK, subscription_json jsonb)          -- Web Push subscription object; upsert on conflict user_id
 notify_settings    (user_id uuid PK, notify_new_trip bool, notify_complete bool, notify_expense bool)
@@ -152,4 +154,6 @@ notify_settings    (user_id uuid PK, notify_new_trip bool, notify_complete bool,
 - **Date format hiển thị**: `HH:MM - DD/MM/YY` (2 chữ số năm, có giờ phút). Đây là output của `formatDate()` hiện tại.
 - **Currency**: luôn `đ` (chữ thường), KHÔNG dùng `₫` unicode.
 - **Google OAuth `redirectTo`**: dùng `window.location.origin + '/bai10.html'` để hoạt động cả local và production.
+- **`maybeSingle()` error handling**: luôn destructure cả `data` lẫn `error`. `{ data: null, error: null }` nghĩa là không tìm thấy row (bình thường). `error !== null` mới là lỗi DB thật. Pattern chuẩn: `const { data: x, error: xErr } = await sb.from(...).maybeSingle(); if (xErr) { showToast(...); return } if (x) { /* trùng */ return }`
+- **Clickable cell pattern**: khi một cell trong bảng là entry point vào modal, tạo `<span>` bên trong `<td>` với `style.color = 'var(--primary)'`, `textDecoration = 'underline'`, `cursor = 'pointer'`. Dùng `addEventListener('click', ...)` thay vì `onclick` attribute (đảm bảo closure đúng trong forEach).
 

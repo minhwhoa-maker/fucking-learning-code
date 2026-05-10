@@ -8,6 +8,16 @@
         <link rel="manifest" href="manifest.json">
         <link rel="stylesheet" href="style.css">
         <script src="shared.js"></script>
+        <style>
+            @media (max-width: 600px) {
+                #report-body td:nth-child(4),
+                #report-body td:nth-child(6),
+                table thead tr th:nth-child(4),
+                table thead tr th:nth-child(6) {
+                    display: none;
+                }
+            }
+        </style>
     </head>
     <body>
         <div class="header">
@@ -179,6 +189,9 @@
 
                 trips.forEach((trip) => {
                     const row = document.createElement('tr')
+                    row.style.cursor = 'pointer'
+                    row.addEventListener('mouseenter', () => row.style.background = '#e3f2fd')
+                    row.addEventListener('mouseleave', () => row.style.background = '')
                     const doanhThu = toNumber(trip.doanh_thu)
                     const chiPhi = toNumber(trip.chi_phi)
                     const loiNhuan = doanhThu - chiPhi
