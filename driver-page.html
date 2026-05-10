@@ -380,9 +380,27 @@
     function addMoneyHint(input) {
         const hint = document.createElement('small')
         hint.style.cssText = 'color:var(--primary);font-size:0.85em;margin-top:4px;display:block;min-height:1.2em'
+        input.type = 'text'
         input.addEventListener('input', () => {
-            const n = Number(input.value)
-            hint.textContent = (input.value && Number.isFinite(n)) ? numberToVietnamese(n) : ''
+            const pos = input.selectionStart
+            const oldVal = input.value
+            let digitsBefore = 0
+            for (let i = 0; i < pos; i++) {
+                if (/\d/.test(oldVal[i])) digitsBefore++
+            }
+            const raw = input.value.replace(/\D/g, '')
+            input.dataset.rawValue = raw
+            const formatted = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''
+            input.value = formatted
+            let count = 0
+            let newPos = formatted.length
+            for (let i = 0; i < formatted.length; i++) {
+                if (/\d/.test(formatted[i])) count++
+                if (count === digitsBefore) { newPos = i + 1; break }
+            }
+            input.setSelectionRange(newPos, newPos)
+            const n = Number(raw)
+            hint.textContent = (raw && Number.isFinite(n)) ? numberToVietnamese(n) : ''
         })
         input.insertAdjacentElement('afterend', hint)
         return hint
@@ -453,7 +471,8 @@
     async function submitAddExpense(tripId) {
         const form = document.querySelector(`[data-form-id="add-${tripId}"]`)
         const loai = form.querySelector('[data-field="loai"]').value
-        const soTienVal = form.querySelector('[data-field="so_tien"]').value
+        const soTienEl = form.querySelector('[data-field="so_tien"]')
+        const soTienVal = soTienEl.dataset.rawValue || soTienEl.value
         const mo_ta = form.querySelector('[data-field="mo_ta"]').value.trim()
         const so_tien = Number(soTienVal)
         if (!soTienVal || !Number.isFinite(so_tien) || so_tien < 0) {
@@ -595,7 +614,8 @@
         soTienLabel.textContent = 'Số tiền (đ)'
         const soTienInput = document.createElement('input')
         soTienInput.type = 'number'
-        soTienInput.value = exp.so_tien || ''
+        soTienInput.value = exp.so_tien ? Number(exp.so_tien).toLocaleString('vi-VN').replace(/\./g, '.') : ''
+        soTienInput.dataset.rawValue = exp.so_tien || ''
         soTienInput.setAttribute('data-field', 'so_tien')
         soTienGroup.append(soTienLabel, soTienInput)
         const soTienHint = addMoneyHint(soTienInput)
@@ -637,7 +657,8 @@
     async function submitEditExpense(expenseId, currentAnhUrl, tripId) {
         const form = document.querySelector(`[data-form-id="edit-${expenseId}"]`)
         const loai = form.querySelector('[data-field="loai"]').value
-        const soTienVal = form.querySelector('[data-field="so_tien"]').value
+        const soTienEl = form.querySelector('[data-field="so_tien"]')
+        const soTienVal = soTienEl.dataset.rawValue || soTienEl.value
         const mo_ta = form.querySelector('[data-field="mo_ta"]').value.trim()
         const so_tien = Number(soTienVal)
         if (!soTienVal || !Number.isFinite(so_tien) || so_tien < 0) {
@@ -730,15 +751,16 @@
 
     async function submitComplete(tripId) {
         const form = document.querySelector(`[data-form-id="complete-${tripId}"]`)
-        const dtVal = form.querySelector('[data-field="doanh_thu"]').value
+        const dtEl = form.querySelector('[data-field="doanh_thu"]')
+        const dtVal = dtEl.dataset.rawValue || dtEl.value
         const doanh_thu = Number(dtVal)
         if (!dtVal || !Number.isFinite(doanh_thu) || doanh_thu < 0) {
             showToast('Vui lòng nhập doanh thu thực tế', 'error')
             return
         }
-        const luong_chuyen = Number(form.querySelector('[data-field="luong_chuyen"]').value) || 0
-        const tam_ung      = Number(form.querySelector('[data-field="tam_ung"]').value) || 0
-        const hoan_ung     = Number(form.querySelector('[data-field="hoan_ung"]').value) || 0
+        const luong_chuyen = Number(form.querySelector('[data-field="luong_chuyen"]').dataset.rawValue || form.querySelector('[data-field="luong_chuyen"]').value) || 0
+        const tam_ung      = Number(form.querySelector('[data-field="tam_ung"]').dataset.rawValue || form.querySelector('[data-field="tam_ung"]').value) || 0
+        const hoan_ung     = Number(form.querySelector('[data-field="hoan_ung"]').dataset.rawValue || form.querySelector('[data-field="hoan_ung"]').value) || 0
         const btn = form.querySelector('.btn-success')
         btn.disabled = true
         showToast('Đang lấy vị trí GPS...')
