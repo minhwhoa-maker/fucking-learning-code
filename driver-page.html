@@ -23,7 +23,7 @@
         <!-- Tab: Đang chạy -->
         <div id="panel-dang-chay">
             <div style="margin-bottom:12px">
-                <button class="btn btn-success" id="btn-new-trip" onclick="openForm('new-trip')">+ Tạo chuyến mới</button>
+                <button class="btn btn-success" id="btn-new-trip" onclick="openForm('new-trip')" style="display:none">+ Tạo chuyến mới</button>
             </div>
             <div class="card" data-form-id="new-trip" style="display:none">
                 <h3>Tạo chuyến mới</h3>
@@ -852,9 +852,10 @@
         currentDriverName = u?.full_name || currentUser.email
         const { data: xe } = await sb.from('xe').select('bien_so').eq('tai_xe_id', currentProfileId).maybeSingle()
         currentBienSo = formatBienSo(xe?.bien_so || '') || ''
-        if (!xe) {
+        if (xe) {
+            document.getElementById('btn-new-trip').style.display = ''
+        } else {
             showToast('Bạn chưa được chủ xe chỉ định xe, vui lòng liên hệ chủ xe.', 'error')
-            document.getElementById('btn-new-trip').style.display = 'none'
         }
         const { data: ownerRow } = await sb.from('users').select('owner_id').eq('id', currentProfileId).single()
         currentOwnerId = ownerRow?.owner_id || null
