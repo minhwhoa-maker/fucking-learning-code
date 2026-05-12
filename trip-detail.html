@@ -276,6 +276,24 @@
             && currentTrip.tai_xe_id === currentProfile.id
     }
 
+    function openImageModal(url) {
+        const overlay = document.createElement('div')
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;justify-content:center;align-items:center'
+
+        const img = document.createElement('img')
+        img.src = url
+        img.style.cssText = 'max-width:95vw;max-height:90vh;object-fit:contain;border-radius:8px'
+
+        const closeBtn = document.createElement('button')
+        closeBtn.textContent = '✕'
+        closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;font-size:1.5em;background:none;border:none;color:white;cursor:pointer'
+        closeBtn.onclick = () => overlay.remove()
+
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove() })
+        overlay.append(img, closeBtn)
+        document.body.appendChild(overlay)
+    }
+
     function renderExpenses(expenses) {
         const container = document.getElementById('expenses-section')
         container.textContent = ''
@@ -329,12 +347,11 @@
                 actions.style.cssText = 'display:flex;gap:4px;align-items:center'
 
                 if (exp.anh_url) {
-                    const photoLink = document.createElement('a')
-                    photoLink.href = exp.anh_url
-                    photoLink.target = '_blank'
-                    photoLink.textContent = '📷'
-                    photoLink.style.textDecoration = 'none'
-                    actions.appendChild(photoLink)
+                    const photoBtn = document.createElement('button')
+                    photoBtn.textContent = '📷'
+                    photoBtn.className = 'btn btn-sm btn-gray'
+                    photoBtn.onclick = () => openImageModal(exp.anh_url)
+                    actions.appendChild(photoBtn)
                 }
 
                 if (exp.lat && exp.lng) {
