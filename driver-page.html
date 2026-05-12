@@ -852,8 +852,8 @@
         currentDriverName = u?.full_name || currentUser.email
         const { data: xe } = await sb.from('xe').select('bien_so').eq('tai_xe_id', currentProfileId).maybeSingle()
         currentBienSo = formatBienSo(xe?.bien_so || '') || ''
-        const { data: owner } = await sb.from('users').select('id').eq('role', 'owner').single()
-        currentOwnerId = owner?.id || null
+        const { data: ownerRow } = await sb.from('users').select('owner_id').eq('id', currentProfileId).single()
+        currentOwnerId = ownerRow?.owner_id || null
         loadActiveTrips()
     }
 
