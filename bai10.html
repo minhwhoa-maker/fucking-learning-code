@@ -390,13 +390,18 @@
                 document.getElementById('login-wrapper').style.display = 'none';
                 document.getElementById('loading-screen').classList.remove('active');
                 const errCard = document.createElement('div');
-                errCard.style.cssText = 'max-width:400px;margin:80px auto;padding:32px 24px;background:white;border-radius:var(--radius);box-shadow:var(--shadow);text-align:center';
-                errCard.innerHTML = '<p style="font-size:1.05em;margin-bottom:20px">Tài khoản chưa được cấp quyền. Vui lòng liên hệ chủ xe.</p>';
+                errCard.style.cssText = 'max-width:400px;margin:80px auto;padding:40px 28px;background:white;border-radius:var(--radius);box-shadow:var(--shadow);text-align:center';
+                const icon = document.createElement('div');
+                icon.style.cssText = 'font-size:48px;margin-bottom:16px';
+                icon.textContent = '🚫';
+                const msg = document.createElement('p');
+                msg.style.cssText = 'font-size:1.05em;color:var(--text);margin-bottom:24px;line-height:1.5';
+                msg.textContent = 'Tài khoản chưa được cấp quyền. Vui lòng liên hệ chủ xe.';
                 const btnOut = document.createElement('button');
-                btnOut.className = 'btn btn-logout';
-                btnOut.textContent = 'Đăng xuất';
-                btnOut.onclick = async () => { await sb.auth.signOut(); window.location.reload(); };
-                errCard.appendChild(btnOut);
+                btnOut.className = 'btn btn-danger';
+                btnOut.textContent = 'Thử lại bằng tài khoản khác';
+                btnOut.onclick = async () => { await sb.auth.signOut(); window.location.href = 'bai10.html'; };
+                errCard.append(icon, msg, btnOut);
                 document.body.appendChild(errCard);
                 return;
             }
