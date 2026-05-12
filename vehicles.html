@@ -102,7 +102,7 @@
 
         async function loadDrivers() {
             try {
-                const { data, error } = await sb.from('users').select('id, full_name, sdt').eq('role', 'driver')
+                const { data, error } = await sb.from('users').select('id, full_name, sdt').eq('role', 'driver').eq('owner_id', ownerProfileId)
                 if (error) throw new Error(error.message)
 
                 drivers = data || []

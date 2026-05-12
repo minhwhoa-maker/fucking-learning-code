@@ -251,7 +251,7 @@
         document.getElementById('new-trip-ghi-chu').value = ''
         closeActiveForm()
         showToast('Tạo chuyến thành công', 'success')
-        notifyOwner('new_trip', { driver_name: currentDriverName, tuyen_duong })
+        notifyOwner('new_trip', { driver_name: currentDriverName, bien_so: currentBienSo, tuyen_duong })
         loadActiveTrips()
     }
 
@@ -781,7 +781,7 @@
         closeActiveForm()
         showToast('Hoàn thành chuyến', 'success')
         const tripCard = document.querySelector(`[data-trip-id="${tripId}"]`)
-        notifyOwner('complete', { driver_name: currentDriverName, tuyen_duong: tripCard?.dataset.tuyenDuong || '' })
+        notifyOwner('complete', { driver_name: currentDriverName, bien_so: currentBienSo, tuyen_duong: tripCard?.dataset.tuyenDuong || '' })
         loadActiveTrips()
     }
 

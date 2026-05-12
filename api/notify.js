@@ -10,11 +10,11 @@ webpush.setVapidDetails(
 const NOTIFY_CONTENT = {
     new_trip: (p) => ({
         title: '🚛 Chuyến mới bắt đầu',
-        body: `${p.driver_name} — ${p.tuyen_duong}`
+        body: `[${p.bien_so}] ${p.driver_name} — ${p.tuyen_duong}`
     }),
     complete: (p) => ({
         title: '✅ Chuyến hoàn thành',
-        body: `${p.driver_name} — ${p.tuyen_duong}`
+        body: `[${p.bien_so}] ${p.driver_name} — ${p.tuyen_duong}`
     }),
     expense: (p) => ({
         title: '💰 Chi phí mới',
