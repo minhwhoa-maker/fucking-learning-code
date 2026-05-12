@@ -855,7 +855,11 @@
         if (xe) {
             document.getElementById('btn-new-trip').style.display = ''
         } else {
-            showToast('Bạn chưa được chủ xe chỉ định xe, vui lòng liên hệ chủ xe.', 'error')
+            const warn = document.createElement('div')
+            warn.style.cssText = 'background:#fdecea;border:1.5px solid var(--danger);border-radius:var(--radius);padding:16px;color:var(--danger);margin-bottom:12px;font-size:14px;'
+            warn.textContent = 'Bạn chưa được chủ xe chỉ định xe, vui lòng liên hệ chủ xe.'
+            const activeTrips = document.getElementById('active-trips')
+            activeTrips.parentNode.insertBefore(warn, activeTrips)
         }
         const { data: ownerRow } = await sb.from('users').select('owner_id').eq('id', currentProfileId).single()
         currentOwnerId = ownerRow?.owner_id || null
