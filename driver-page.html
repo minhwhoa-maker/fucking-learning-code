@@ -514,7 +514,7 @@
         closeActiveForm()
         btnSave.disabled = false
         showToast('Đã thêm chi phí', 'success')
-        notifyOwner('expense', { driver_name: currentDriverName, bien_so: currentBienSo, loai: EXPENSE_TYPES[loai], so_tien: formatMoney(so_tien) })
+        notifyOwner('expense', { driver_name: currentDriverName, bien_so: currentBienSo, loai: EXPENSE_TYPES[loai], so_tien: formatMoney(so_tien), trip_id: tripId })
         await reloadTripChiPhi(tripId)
         await loadExpenses(tripId)
     }
