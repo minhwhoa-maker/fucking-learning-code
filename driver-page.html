@@ -377,7 +377,7 @@
         if (trieu > 0) parts.push(readThreeDigits(trieu) + ' triệu')
         if (nghin > 0) parts.push(readThreeDigits(nghin) + ' nghìn')
         if (remainder > 0) parts.push(readThreeDigits(remainder))
-        return parts.join(' ') + ' đ'
+        const result = parts.join(' ') + ' đ'; return result.charAt(0).toUpperCase() + result.slice(1)
     }
 
     function addMoneyHint(input) {
