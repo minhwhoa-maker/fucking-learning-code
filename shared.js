@@ -75,15 +75,14 @@ function setupLogoutListener(sb) {
 
 function formatDate(dateStr) {
     if (!dateStr) return '';
-    // Normalize: bỏ timezone offset, chỉ lấy phần datetime
-    const clean = dateStr.replace(/\+\d{2}:\d{2}$/, '').replace('T', ' ');
-    const d = new Date(clean);
+    const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mo = String(d.getMonth() + 1).padStart(2, '0');
-    const yy = String(d.getFullYear()).slice(2);
+    const vn = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+    const hh = String(vn.getUTCHours()).padStart(2, '0');
+    const mm = String(vn.getUTCMinutes()).padStart(2, '0');
+    const dd = String(vn.getUTCDate()).padStart(2, '0');
+    const mo = String(vn.getUTCMonth() + 1).padStart(2, '0');
+    const yy = String(vn.getUTCFullYear()).slice(2);
     return `${hh}:${mm} - ${dd}/${mo}/${yy}`;
 }
 function getLocation() {

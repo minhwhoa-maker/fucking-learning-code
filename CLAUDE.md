@@ -34,7 +34,7 @@ Không có build step, không có test runner, không có lint. Quy trình:
 - `vehicles.html` — owner quản lý xe + bảo dưỡng inline. Click biển số → modal đổi tài xế (kiểm tra tài xế đang lái xe khác). Nút "📋 Chuyến" → modal popup xem trips của xe (filter tháng bên trong modal, `#trips-filter-month`). `trang_thai` tự set `hoat_dong`/`tam_nghi` theo `tai_xe_id`. `nam_sx` là DB column nhưng ẩn khỏi UI. `tai_xe_id` unique được enforce ở app, không có DB constraint. Dùng `formatBienSo(s)` từ `shared.js` khi hiển thị và khi blur khỏi input biển số.
 - `style.css` — design system shared, dùng CSS variables.
 - `shared.js` — JS utilities shared (xem dưới).
-- `sw.js` + `manifest.json` — PWA, chỉ register từ `bai10.html`. Khi deploy thay đổi cho các file được cache (bai10, style.css, manifest, icons), phải bump `CACHE_NAME` trong `sw.js` (hiện tại `van-tai-v6`) để invalidate cache cũ. Có push handler (hiện notification) + notificationclick handler (focus tab cũ hoặc mở tab mới tới URL trong `notification.data.url`).
+- `sw.js` + `manifest.json` — PWA, chỉ register từ `bai10.html`. STATIC_ASSETS chỉ gồm `bai10.html`, `style.css`, `manifest.json`, và icons — **`shared.js` và tất cả admin pages không được pre-cache**, chỉ được dynamic-cache khi đã navigate tới. Khi deploy thay đổi cho bất kỳ file nào trong STATIC_ASSETS, phải bump `CACHE_NAME` trong `sw.js` (hiện tại `van-tai-v6`) để invalidate cache cũ. Có push handler (hiện notification) + notificationclick handler (focus tab cũ hoặc mở tab mới tới URL trong `notification.data.url`).
 
 ### shared.js (BẮT BUỘC dùng cho mọi page mới)
 ```
@@ -103,14 +103,25 @@ function showToast(msg, type = '') {
 
 Tất cả dùng ESM (`import`/`export default`). `package.json` khai báo `"type": "module"`.
 
-- **`api/chat.js`** — proxy SSE tới Anthropic API. Env: `ANTHROPIC_API_KEY`.
+- **`api/chat.js`** — pure proxy SSE tới Anthropic API; model, system prompt và messages đều đến từ `req.body` (do `owner-dashboard.html` gửi), không có gì hardcode server-side. Env: `ANTHROPIC_API_KEY`.
 - **`api/subscribe.js`** — POST `{ user_id, subscription }`, upsert vào `push_subscriptions`. Env: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`.
-- **`api/notify.js`** — POST `{ owner_id, type, payload }`. Check `notify_settings`, gửi push qua `web-push`, tự xóa subscription nếu 410. Push payload JSON bao gồm `title`, `body`, `icon`, và `url` (dùng trong `sw.js` notificationclick). `type` và payload fields bắt buộc:
-  - `'new_trip'`: `{ driver_name, bien_so, tuyen_duong }` → url: `/owner-dashboard.html`
-  - `'complete'`: `{ driver_name, bien_so, tuyen_duong }` → url: `/owner-dashboard.html`
-  - `'expense'`: `{ driver_name, bien_so, loai, so_tien, trip_id }` → url: `/trip-detail.html?id={trip_id}`
+- **`api/notify.js`** — POST `{ owner_id, type, payload }`. Check `notify_settings`, gửi push qua `web-push`, tự xóa subscription nếu 410. Push payload JSON bao gồm `title`, `body`, `icon`, và `url` (dùng trong `sw.js` notificationclick). URL logic: nếu `payload.trip_id` có giá trị → `/trip-detail.html?id={trip_id}`, ngược lại → `/owner-dashboard.html`. `type` và payload fields bắt buộc:
+  - `'new_trip'`: `{ driver_name, bien_so, tuyen_duong, trip_id }`
+  - `'complete'`: `{ driver_name, bien_so, tuyen_duong, trip_id }`
+  - `'expense'`: `{ driver_name, bien_so, loai, so_tien, trip_id }`
   
   Env: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`.
+
+### Vercel environment variables (tổng hợp)
+
+| Variable | Dùng trong |
+|---|---|
+| `ANTHROPIC_API_KEY` | `api/chat.js` |
+| `SUPABASE_URL` | `api/subscribe.js`, `api/notify.js` |
+| `SUPABASE_SERVICE_KEY` | `api/subscribe.js`, `api/notify.js` |
+| `VAPID_SUBJECT` | `api/notify.js` |
+| `VAPID_PUBLIC_KEY` | `api/notify.js` |
+| `VAPID_PRIVATE_KEY` | `api/notify.js` |
 
 ## Database
 
@@ -160,7 +171,7 @@ notify_settings    (user_id uuid PK, notify_new_trip bool, notify_complete bool,
   - Page admin/driver sẽ cần policy "user đọc được row của mình" + "owner đọc được tất cả".
 - **`bai10.checkUserRole`**: Khi email không tìm thấy trong `users`, **không INSERT** — hiện inline error card (ẩn login UI, hiện card đỏ với nút "Thử lại bằng tài khoản khác" gọi `signOut()` + redirect `bai10.html`). `shared.getUserRole/getUserProfile` chỉ select. Drivers phải được owner tạo trước qua `driver.html`.
 - **`bai10.formatStatNumber`** (local) ≠ `shared.formatMoney`: bai10 hiển thị dạng rút gọn `1.2B`/`345M`/`12K`, các page khác dùng full `1.234.567 đ`.
-- **Date format hiển thị**: `HH:MM - DD/MM/YY` (2 chữ số năm, có giờ phút). Đây là output của `formatDate()` hiện tại.
+- **`formatDate` timezone**: hàm strip `+HH:MM` offset trước khi parse bằng `new Date()`, nên giờ hiển thị theo **local timezone của thiết bị**, không phải UTC. Supabase lưu timestamp UTC → trên thiết bị ở múi giờ khác (ví dụ UTC+7), giờ hiển thị tự cộng 7h. Output format: `HH:MM - DD/MM/YY` (2 chữ số năm).
 - **Currency**: luôn `đ` (chữ thường), KHÔNG dùng `₫` unicode.
 - **Google OAuth `redirectTo`**: dùng `window.location.origin + '/bai10.html'` để hoạt động cả local và production.
 - **`maybeSingle()` error handling**: luôn destructure cả `data` lẫn `error`. `{ data: null, error: null }` nghĩa là không tìm thấy row (bình thường). `error !== null` mới là lỗi DB thật. Pattern chuẩn: `const { data: x, error: xErr } = await sb.from(...).maybeSingle(); if (xErr) { showToast(...); return } if (x) { /* trùng */ return }`
