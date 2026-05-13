@@ -581,7 +581,7 @@
     // ── Init ──────────────────────────────────────────────────────────
     async function initPage() {
         const params = new URLSearchParams(window.location.search)
-        const tripId = params.get('id')
+        const tripId = params.get('trip_id')
         if (!tripId) { window.location.href = 'bai10.html'; return }
 
         const { data: { session } } = await sb.auth.getSession()
