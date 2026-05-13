@@ -197,6 +197,8 @@
         card.appendChild(infoRow('Bắt đầu', formatDate(trip.ngay_bat_dau)))
         card.appendChild(infoRow('Kết thúc', trip.ngay_ket_thuc ? formatDate(trip.ngay_ket_thuc) : '—'))
         if (trip.ghi_chu) card.appendChild(infoRow('Ghi chú', trip.ghi_chu))
+        if (trip.tai_xe?.full_name) card.appendChild(infoRow('Tài xế', trip.tai_xe.full_name))
+        if (trip.xe?.bien_so) card.appendChild(infoRow('Biển số', formatBienSo(trip.xe.bien_so)))
 
         // GPS links
         function gpsLink(label, lat, lng) {
@@ -592,8 +594,8 @@
         if (currentProfile.role === 'owner') {
             ownerId = currentProfile.id
         } else {
-            const { data: ownerData } = await sb.from('users').select('id').eq('role', 'owner').single()
-            ownerId = ownerData?.id || null
+            const { data: ownerData } = await sb.from('users').select('owner_id').eq('id', currentProfile.id).single()
+            ownerId = ownerData?.owner_id || null
         }
         if (ownerId === null) {
             showToast('Không tìm thấy thông tin chủ xe', 'error')
@@ -603,7 +605,7 @@
             return
         }
 
-        const { data: trip, error } = await sb.from('trips').select('*').eq('owner_id', ownerId).eq('id', tripId).single()
+        const { data: trip, error } = await sb.from('trips').select('*, tai_xe:users!tai_xe_id(full_name), xe:xe(bien_so)').eq('owner_id', ownerId).eq('id', tripId).single()
         if (error || !trip) {
             showToast('Không tìm thấy chuyến', 'error')
             setTimeout(() => {
