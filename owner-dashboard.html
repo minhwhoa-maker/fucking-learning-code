@@ -254,7 +254,7 @@
                 const totalCP = trips.reduce((sum, c) => sum + toNumber(c.chi_phi), 0)
                 const totalluong = trips.reduce((sum, c) => sum + toNumber(c.luong_chuyen), 0)
 
-                const { data: drivers } = await sb.from('users').select('id, full_name').eq('role', 'driver')
+                const { data: drivers } = await sb.from('users').select('id, full_name').eq('role', 'driver').eq('owner_id', currentOwnerProfileId)
                 const driverMap = {}
                 if (Array.isArray(drivers)) drivers.forEach(d => { driverMap[d.id] = d.full_name })
 

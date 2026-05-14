@@ -624,7 +624,7 @@
         soTienInput.setAttribute('data-field', 'so_tien')
         soTienGroup.append(soTienLabel, soTienInput)
         const soTienHint = addMoneyHint(soTienInput)
-        if (soTienInput.value) soTienHint.textContent = numberToVietnamese(Number(soTienInput.value))
+        if (soTienInput.dataset.rawValue) soTienHint.textContent = numberToVietnamese(Number(soTienInput.dataset.rawValue))
 
         const moTaGroup = document.createElement('div')
         moTaGroup.className = 'form-group'

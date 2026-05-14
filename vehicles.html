@@ -171,13 +171,13 @@
             }
         }
 
-        async function changeStatus(id, currentStatus) {
+        async function changeStatus(id, currentStatus, taiXeId) {
             const statusMap = {
                 hoat_dong: 'bao_duong',
-                bao_duong: 'tam_nghi',
-                tam_nghi: 'hoat_dong'
+                bao_duong: taiXeId ? 'hoat_dong' : 'tam_nghi',
+                tam_nghi: 'bao_duong'
             }
-            const newStatus = statusMap[currentStatus] || 'hoat_dong'
+            const newStatus = statusMap[currentStatus] || (taiXeId ? 'hoat_dong' : 'tam_nghi')
 
             const { error } = await sb.from('xe').update({ trang_thai: newStatus }).eq('id', id)
             if (error) showToast('Lỗi: ' + error.message, 'error')
@@ -287,9 +287,9 @@
                     actions.style.gap = '6px'
                     actions.style.flexWrap = 'wrap'
                     actions.append(
-                        createButton('Đổi TT', 'btn', () => changeStatus(v.id, v.trang_thai)),
+                        createButton('Đổi TT', 'btn', () => changeStatus(v.id, v.trang_thai, v.tai_xe_id)),
                         createButton('🔧 Bảo dưỡng', 'btn btn-warning', () => toggleMaintenance(v.id)),
-                        createButton('📋 Chuyến', 'btn btn-success', () => openTripsModal(v.id, v.bien_so || '', v.tai_xe_id)),
+                        createButton('📋 Chuyến', 'btn btn-success', () => openTripsModal(v.id, v.bien_so || '')),
                         createButton('Xóa', 'btn btn-danger', () => deleteVehicle(v.id, v.bien_so || ''))
                     )
                     actionCell.appendChild(actions)
@@ -413,11 +413,9 @@
         }
 
         let tripsModalVehicleId = null
-        let tripsModalTaiXeId = null
 
-        function openTripsModal(vehicleId, bienSo, taiXeId) {
+        function openTripsModal(vehicleId, bienSo) {
             tripsModalVehicleId = vehicleId
-            tripsModalTaiXeId = taiXeId
             document.getElementById('trips-modal-title').textContent = '🚛 Xe ' + formatBienSo(bienSo)
             document.getElementById('trips-modal').style.display = 'flex'
             loadTripsModal()
@@ -426,7 +424,6 @@
         function closeTripsModal() {
             document.getElementById('trips-modal').style.display = 'none'
             tripsModalVehicleId = null
-            tripsModalTaiXeId = null
         }
 
         function reloadTripsModal() {
@@ -437,13 +434,8 @@
             const container = document.getElementById('trips-modal-body')
             container.textContent = 'Đang tải...'
 
-            if (!tripsModalTaiXeId) {
-                container.textContent = 'Xe chưa có tài xế'
-                return
-            }
-
             const month = document.getElementById('trips-filter-month').value
-            let query = sb.from('trips').select('*').eq('owner_id', ownerProfileId).eq('tai_xe_id', tripsModalTaiXeId).order('ngay_bat_dau', { ascending: false })
+            let query = sb.from('trips').select('*').eq('owner_id', ownerProfileId).eq('xe_id', tripsModalVehicleId).order('ngay_bat_dau', { ascending: false })
 
             if (month) {
                 const [year, mon] = month.split('-').map(Number)

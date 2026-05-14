@@ -39,7 +39,7 @@ export default async function handler(req, res) {
         .from('notify_settings')
         .select('notify_new_trip, notify_complete, notify_expense')
         .eq('user_id', owner_id)
-        .single()
+        .maybeSingle()
 
     if (settings && settings[`notify_${type}`] === false) {
         return res.status(200).json({ skipped: true })
