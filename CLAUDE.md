@@ -183,4 +183,5 @@ notify_settings    (user_id uuid PK, notify_new_trip bool, notify_complete bool,
   - `vehicles.html` → `ownerProfileId` (module level, gán từ `auth.profile.id` trong `init()`)
   - `driver-page.html` → `currentOwnerId` (module level, query `users.owner_id where id = currentProfileId` trong `initPage()`)
   - `trip-detail.html` → `ownerId` (local trong `initPage()`: nếu owner thì `currentProfile.id`, nếu driver thì query DB; nếu null thì toast + redirect)
+- **FK trên `notify_settings` và `push_subscriptions`**: cột `user_id` phải references `public.users(id)`, **không phải** `auth.users(id)`. Nếu tạo FK sai sang `auth.users`, insert/upsert sẽ fail với foreign key violation vì app dùng `users.id` (DB-generated UUID), không phải Auth UUID.
 
