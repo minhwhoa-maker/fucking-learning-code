@@ -34,7 +34,9 @@ Không có build step, không có test runner, không có lint. Quy trình:
 - `vehicles.html` — owner quản lý xe + bảo dưỡng inline. Click biển số → modal đổi tài xế (kiểm tra tài xế đang lái xe khác). Nút "📋 Chuyến" → modal popup xem trips của xe, query bằng `xe_id` (KHÔNG phải `tai_xe_id`) để lấy đúng chuyến của xe đó qua mọi tài xế — filter tháng bên trong modal, `#trips-filter-month`. `changeStatus(id, status, taiXeId)` cycle 2 chiều tùy driver: có tài xế → `hoat_dong ↔ bao_duong`; không tài xế → `tam_nghi ↔ bao_duong`. `trang_thai` tự set `hoat_dong`/`tam_nghi` theo `tai_xe_id`. `nam_sx` là DB column nhưng ẩn khỏi UI. `tai_xe_id` unique được enforce ở app, không có DB constraint. Dùng `formatBienSo(s)` từ `shared.js` khi hiển thị và khi blur khỏi input biển số.
 - `style.css` — design system shared, dùng CSS variables.
 - `shared.js` — JS utilities shared (xem dưới).
-- `sw.js` + `manifest.json` — PWA, chỉ register từ `bai10.html`. STATIC_ASSETS chỉ gồm `bai10.html`, `style.css`, `manifest.json`, và icons — **`shared.js` và tất cả admin pages không được pre-cache**, chỉ được dynamic-cache khi đã navigate tới. Khi deploy thay đổi cho bất kỳ file nào trong STATIC_ASSETS, phải bump `CACHE_NAME` trong `sw.js` (hiện tại `van-tai-v6`) để invalidate cache cũ. Có push handler (hiện notification) + notificationclick handler (focus tab cũ hoặc mở tab mới tới URL trong `notification.data.url`).
+- `luong-thang.html` — owner quản lý bảng lương tháng cho tất cả tài xế. Toggle `cho_phep_xem_luong` trên `users` (owner row) cho phép driver xem lương. Filter tháng → auto-INSERT `luong_thang` row cho driver chưa có row trong tháng đó (snapshot `luong_co_ban` từ xe, `ngay_lam=26`). Bảng 12 cột: Tên | Biển số | Lương CB | Ngày làm | Σ chuyến | Phụ cấp | Thưởng | Σ tạm ứng | Σ hoàn ứng | Khấu trừ | THỰC LĨNH | Sửa. Edit modal cập nhật `ngay_lam, phu_cap, thuong, khau_tru, ghi_chu`. `ownerProfileId` = `auth.profile.id`.
+- `luong-cua-toi.html` — driver xem lương của mình. Permission gate: query `users.owner_id` của driver → query `users.cho_phep_xem_luong` của owner; nếu false/null → hiện card đỏ "chưa bật". Hiện danh sách tháng dạng card (thực lĩnh lớn, nút Chi tiết → modal breakdown). `currentProfileId` = `auth.profile.id`.
+- `sw.js` + `manifest.json` — PWA, chỉ register từ `bai10.html`. STATIC_ASSETS chỉ gồm `bai10.html`, `style.css`, `manifest.json`, và icons — **`shared.js` và tất cả admin pages không được pre-cache**, chỉ được dynamic-cache khi đã navigate tới. Khi deploy thay đổi cho bất kỳ file nào trong STATIC_ASSETS, phải bump `CACHE_NAME` trong `sw.js` (hiện tại `van-tai-v8`) để invalidate cache cũ. Có push handler (hiện notification) + notificationclick handler (focus tab cũ hoặc mở tab mới tới URL trong `notification.data.url`).
 
 ### shared.js (BẮT BUỘC dùng cho mọi page mới)
 ```
@@ -126,8 +128,10 @@ Tất cả dùng ESM (`import`/`export default`). `package.json` khai báo `"typ
 ## Database
 
 ```
-users          (id, email, full_name, sdt, role, owner_id)              -- role: 'owner' | 'driver'
+users          (id, email, full_name, sdt, role, owner_id, cho_phep_xem_luong bool)
+                -- role: 'owner' | 'driver'
                 -- owner_id: uuid FK → users.id; set khi owner tạo driver qua driver.html; NULL cho owner row
+                -- cho_phep_xem_luong: chỉ meaningful trên owner row; driver đọc qua FK owner_id
 trips          (id, owner_id, ngay_bat_dau, ngay_ket_thuc, tuyen_duong, doanh_thu,
                 chi_phi, luong_chuyen, tam_ung, hoan_ung, tai_xe_id, xe_id,
                 ghi_chu, trang_thai, anh_hoa_don,
@@ -143,12 +147,20 @@ chi_phi_chuyen (id, trip_id, loai, mo_ta, so_tien, anh_url, created_at, lat, lng
                 -- anh_url: public URL từ storage bucket 'receipts'
                 -- lat/lng: nullable, tọa độ GPS khi thêm chi phí
 tam_ung_thang  (id, owner_id, tai_xe_id, thang, so_tien, ghi_chu)      -- thang format: 'YYYY-MM'
-xe             (id, owner_id, bien_so, loai_xe, nam_sx, trang_thai, tai_xe_id)
+xe             (id, owner_id, bien_so, loai_xe, nam_sx, trang_thai, tai_xe_id, luong_co_ban int)
                 -- trang_thai: 'hoat_dong' | 'bao_duong' | 'tam_nghi'
                 -- nam_sx: tồn tại trong DB nhưng ẩn khỏi UI vehicles.html
                 -- tai_xe_id: không có UNIQUE constraint trong DB, app tự enforce
+                -- luong_co_ban: lương cơ bản tháng (VNĐ), snapshot vào luong_thang khi tạo row
 bao_duong      (id, owner_id, xe_id, ngay, loai, mo_ta, chi_phi, created_at)
                 -- loai: 'hong_hoc' | 'linh_kien' | 'lop_xe' | 'dinh_ky'
+luong_thang    (id, owner_id, tai_xe_id, thang text, luong_co_ban_snapshot int, ngay_lam int default 26,
+                phu_cap int, thuong int, khau_tru int, ghi_chu text, created_at, updated_at)
+                -- thang format: 'YYYY-MM'; UNIQUE(tai_xe_id, thang)
+                -- FK owner_id → public.users(id) ON DELETE CASCADE
+                -- FK tai_xe_id → public.users(id) ON DELETE CASCADE
+                -- thuc_linh = round(luong_co_ban_snapshot/26*ngay_lam) + Σluong_chuyen + phu_cap + thuong - Σtam_ung + Σhoan_ung - khau_tru
+                -- Σluong_chuyen/tam_ung/hoan_ung query LIVE từ trips (trang_thai='hoan_thanh', ngay_ket_thuc trong tháng)
 push_subscriptions (user_id uuid PK, subscription_json jsonb)          -- Web Push subscription object; upsert on conflict user_id
 notify_settings    (user_id uuid PK, notify_new_trip bool, notify_complete bool, notify_expense bool)
                                                                         -- NULL row = tất cả bật; chỉ cần upsert khi owner thay đổi
@@ -177,10 +189,11 @@ notify_settings    (user_id uuid PK, notify_new_trip bool, notify_complete bool,
 - **Google OAuth `redirectTo`**: dùng `window.location.origin + '/bai10.html'` để hoạt động cả local và production.
 - **`maybeSingle()` error handling**: luôn destructure cả `data` lẫn `error`. `{ data: null, error: null }` nghĩa là không tìm thấy row (bình thường). `error !== null` mới là lỗi DB thật. Pattern chuẩn: `const { data: x, error: xErr } = await sb.from(...).maybeSingle(); if (xErr) { showToast(...); return } if (x) { /* trùng */ return }`
 - **Clickable cell pattern**: khi một cell trong bảng là entry point vào modal, tạo `<span>` bên trong `<td>` với `style.color = 'var(--primary)'`, `textDecoration = 'underline'`, `cursor = 'pointer'`. Dùng `addEventListener('click', ...)` thay vì `onclick` attribute (đảm bảo closure đúng trong forEach).
-- **`owner_id` pattern** — `trips`, `xe`, `bao_duong`, `tam_ung_thang` đều có cột `owner_id` = `users.id` của owner. **Mọi SELECT phải filter `.eq('owner_id', ...)`, mọi INSERT phải include `owner_id`.** Mỗi page lưu owner_id vào biến riêng:
+- **`owner_id` pattern** — `trips`, `xe`, `bao_duong`, `tam_ung_thang`, `luong_thang` đều có cột `owner_id` = `users.id` của owner. **Mọi SELECT phải filter `.eq('owner_id', ...)`, mọi INSERT phải include `owner_id`.** Mỗi page lưu owner_id vào biến riêng:
   - `owner-dashboard.html` → `currentOwnerProfileId` (module level, gán từ `auth.profile.id` trong `initPage()`)
   - `driver.html` → `ownerProfileId` (module level, gán từ `auth.profile.id` trong `initPage()`)
   - `vehicles.html` → `ownerProfileId` (module level, gán từ `auth.profile.id` trong `init()`)
+  - `luong-thang.html` → `ownerProfileId` (module level, gán từ `auth.profile.id` trong `initPage()`)
   - `driver-page.html` → `currentOwnerId` (module level, query `users.owner_id where id = currentProfileId` trong `initPage()`)
   - `trip-detail.html` → `ownerId` (local trong `initPage()`: nếu owner thì `currentProfile.id`, nếu driver thì query DB; nếu null thì toast + redirect)
 - **FK trên `notify_settings` và `push_subscriptions`**: cột `user_id` phải references `public.users(id)`, **không phải** `auth.users(id)`. Nếu tạo FK sai sang `auth.users`, insert/upsert sẽ fail với foreign key violation vì app dùng `users.id` (DB-generated UUID), không phải Auth UUID.
