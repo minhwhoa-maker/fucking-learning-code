@@ -112,7 +112,7 @@
                 </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:16px">
-                <button class="btn" onclick="submitMaintenance()">Lưu</button>
+                <button class="btn" id="btn-maint-submit" onclick="submitMaintenance()">Lưu</button>
                 <button class="btn btn-gray" onclick="closeMaintenanceModal()">Hủy</button>
             </div>
         </div>
@@ -998,7 +998,7 @@
         if (!ngay) { showToast('Vui lòng chọn ngày', 'error'); return }
         if (!bo_phan) { showToast('Vui lòng nhập bộ phận', 'error'); return }
         if (!chiPhiVal || !Number.isFinite(chi_phi) || chi_phi < 0) { showToast('Vui lòng nhập chi phí hợp lệ', 'error'); return }
-        const btn = document.querySelector('#maintenance-modal .btn')
+        const btn = document.getElementById('btn-maint-submit')
         btn.disabled = true
         showToast('Đang lấy vị trí GPS...')
         let loc
@@ -1025,12 +1025,20 @@
             anh_url: anh_url || null,
             lat: loc.lat, lng: loc.lng,
             nguoi_nhap: 'driver',
+            tai_xe_id: currentProfileId,
             trip_id
         })
         btn.disabled = false
         if (error) { showToast('Lỗi: ' + error.message, 'error'); return }
         closeMaintenanceModal()
         showToast('Đã báo bảo dưỡng', 'success')
+        notifyOwner('maintenance', {
+            driver_name: currentDriverName,
+            bien_so: currentBienSo,
+            bo_phan,
+            chi_phi: formatMoney(chi_phi),
+            trip_id
+        })
     }
 
     // ── Auth ──────────────────────────────────────────────────────────

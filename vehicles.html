@@ -497,7 +497,7 @@
             if (!historyContainer) return
             setMaintenanceMessage(historyContainer, 'Đang tải...')
 
-            const { data, error } = await sb.from('bao_duong').select('*').eq('owner_id', ownerProfileId).eq('xe_id', xeId).order('ngay', { ascending: false })
+            const { data, error } = await sb.from('bao_duong').select('*, tai_xe:users!tai_xe_id(full_name)').eq('owner_id', ownerProfileId).eq('xe_id', xeId).order('ngay', { ascending: false })
             if (error) {
                 setMaintenanceMessage(historyContainer, 'Không thể tải lịch sử bảo dưỡng')
                 showToast('Lỗi: ' + error.message, 'error')
@@ -558,7 +558,7 @@
                     const row = document.createElement('tr')
                     addCell(row, formatDate(m.ngay))
                     addCell(row, m.bo_phan || '-')
-                    addCell(row, m.nguoi_nhap === 'driver' ? '👤 Tài xế' : m.nguoi_nhap === 'owner' ? '🏢 Chủ xe' : '-')
+                    addCell(row, m.nguoi_nhap === 'driver' ? '👤 ' + (m.tai_xe?.full_name || 'Tài xế') : m.nguoi_nhap === 'owner' ? '🏢 Chủ xe' : '-')
                     addCell(row, loaiLabels[m.loai] || m.loai || '-')
                     const moTaCell = document.createElement('td')
                     moTaCell.textContent = m.mo_ta || '-'

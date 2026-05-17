@@ -19,6 +19,10 @@ const NOTIFY_CONTENT = {
     expense: (p) => ({
         title: '💰 Chi phí mới',
         body: `${p.driver_name} [${p.bien_so}] thêm ${p.loai}: ${p.so_tien}`
+    }),
+    maintenance: (p) => ({
+        title: '🔧 Báo bảo dưỡng',
+        body: `${p.driver_name} (${p.bien_so}): ${p.bo_phan} - ${p.chi_phi}`
     })
 }
 
@@ -37,7 +41,7 @@ export default async function handler(req, res) {
     // Check notify settings — skip if owner turned off this type
     const { data: settings } = await sb
         .from('notify_settings')
-        .select('notify_new_trip, notify_complete, notify_expense')
+        .select('notify_new_trip, notify_complete, notify_expense, notify_maintenance')
         .eq('user_id', owner_id)
         .maybeSingle()
 
@@ -57,7 +61,9 @@ export default async function handler(req, res) {
     }
 
     const { title, body } = NOTIFY_CONTENT[type](payload)
-    const url = payload.trip_id ? '/trip-detail.html?trip_id=' + payload.trip_id : '/owner-dashboard.html'
+    const url = payload.trip_id
+        ? '/trip-detail.html?trip_id=' + payload.trip_id
+        : (type === 'maintenance' ? '/vehicles.html' : '/owner-dashboard.html')
     const pushPayload = JSON.stringify({
         title,
         body,

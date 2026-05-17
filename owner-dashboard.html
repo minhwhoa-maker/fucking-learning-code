@@ -53,6 +53,13 @@
                     <span class="toggle-slider"></span>
                 </label>
             </div>
+            <div class="notify-row">
+                <span>🔧 Báo bảo dưỡng</span>
+                <label class="toggle">
+                    <input type="checkbox" id="notif-maintenance" onchange="saveNotifySetting('notify_maintenance', this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
         </div>
         <div class="container">
             <div class="stat">
@@ -145,12 +152,13 @@
             async function loadNotifySettings() {
                 const { data } = await sb
                     .from('notify_settings')
-                    .select('notify_new_trip, notify_complete, notify_expense')
+                    .select('notify_new_trip, notify_complete, notify_expense, notify_maintenance')
                     .eq('user_id', currentOwnerProfileId)
                     .maybeSingle()
-                document.getElementById('notif-new-trip').checked = data ? data.notify_new_trip : true
-                document.getElementById('notif-complete').checked  = data ? data.notify_complete  : true
-                document.getElementById('notif-expense').checked   = data ? data.notify_expense   : true
+                document.getElementById('notif-new-trip').checked    = data ? data.notify_new_trip    : true
+                document.getElementById('notif-complete').checked     = data ? data.notify_complete     : true
+                document.getElementById('notif-expense').checked      = data ? data.notify_expense      : true
+                document.getElementById('notif-maintenance').checked  = data ? data.notify_maintenance  : true
             }
 
             async function saveNotifySetting(key, value) {
