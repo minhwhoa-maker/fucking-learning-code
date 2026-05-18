@@ -20,7 +20,6 @@
                 <button class="btn" onclick="window.location.href='owner-dashboard.html'">← Trang chủ</button>
                 <button class="btn btn-logout" onclick="logout()">Logout</button>
                 <button class="btn btn-success" onclick="exportExcel()">📊 Excel</button>
-                <button class="btn btn-purple" onclick="exportPDF()">🖨️ PDF</button>
             </div>
         </div>
     </div>
@@ -30,7 +29,6 @@
         <a href="luong-thang.html">💰 Bảng lương</a>
         <div class="menu-divider"></div>
         <button id="menu-excel">📊 Xuất Excel</button>
-        <button id="menu-pdf">🖨️ Xuất PDF</button>
         <div class="menu-divider"></div>
         <button class="menu-logout" id="menu-logout">🚪 Đăng xuất</button>
     </div>
@@ -78,29 +76,19 @@
         </div>
         <div class="card">
             <h3>Danh sách tài xế</h3>
-            <div class="filter-bar">
-                <label style="font-weight: bold">Tháng</label>
-                <input type="month" id="filter-month">
-                <button class="btn" onclick="loadDrivers()">Lọc</button>
-                <button class="btn btn-gray" onclick="clearFilter()">Tất cả</button>
-            </div>
             <div class="table-scroll wide">
                 <table>
                     <thead>
                         <tr>
-                            <th> Họ và tên</th>
-                            <th> Email</th>
-                            <th> SĐT</th>
-                            <th> Số chuyến</th>
-                            <th> Tổng lương</th>
-                            <th> Tạm ứng</th>
-                            <th> Thực nhận</th>
+                            <th>Họ và tên</th>
+                            <th>SĐT</th>
+                            <th>Xe đang chạy</th>
                             <th>Đang giữ</th>
-                            <th> Xóa</th>
+                            <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="driver-list">
-                        <tr><td colspan="9">Đang tải ...</td></tr>
+                        <tr><td colspan="5">Đang tải ...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -128,7 +116,7 @@
             tbody.textContent = ''
             const row = document.createElement('tr')
             const cell = document.createElement('td')
-            cell.colSpan = 9
+            cell.colSpan = 5
             cell.textContent = message
             row.appendChild(cell)
             tbody.appendChild(row)
@@ -175,15 +163,15 @@
         }
 
         async function deleteDriver(id, name) {
-            if (!confirm('Xóa tài xế ' + name + '?')) return
+            if (!confirm('Xóa tài xế ' + name + '?')) return false
             const { error } = await sb.from('users').delete().eq('id', id)
-            if (error) showToast('Lỗi: ' + error.message, 'error')
-            else loadDrivers()
+            if (error) { showToast('Lỗi: ' + error.message, 'error'); return false }
+            loadDrivers()
+            return true
         }
 
         async function loadDrivers() {
             try {
-                const month = document.getElementById('filter-month').value
                 const { data: drivers, error: driversError } = await sb
                     .from('users')
                     .select('*')
@@ -197,21 +185,15 @@
                     return
                 }
 
-                let tripsQuery = sb.from('trips').select('tai_xe_id, luong_chuyen, ngay_bat_dau').eq('owner_id', ownerProfileId)
-                if (month) {
-                    const start = month + '-01'
-                    const end = new Date(month + '-01')
-                    end.setMonth(end.getMonth() + 1)
-                    tripsQuery = tripsQuery.gte('ngay_bat_dau', start + 'T00:00:00').lt('ngay_bat_dau', end.toISOString().split('T')[0] + 'T00:00:00')
-                }
+                const { data: xeList, error: xeError } = await sb
+                    .from('xe')
+                    .select('tai_xe_id, bien_so')
+                    .eq('owner_id', ownerProfileId)
+                    .not('tai_xe_id', 'is', null)
+                if (xeError) throw new Error(xeError.message)
 
-                const { data: trips, error: tripsError } = await tripsQuery
-                if (tripsError) throw new Error(tripsError.message)
-
-                let advancesQuery = sb.from('tam_ung_thang').select('*').eq('owner_id', ownerProfileId)
-                if (month) advancesQuery = advancesQuery.eq('thang', month)
-                const { data: advances, error: advancesError } = await advancesQuery
-                if (advancesError) throw new Error(advancesError.message)
+                const xeMap = {}
+                ;(xeList || []).forEach(x => { xeMap[x.tai_xe_id] = x.bien_so })
 
                 const { data: allTrips, error: allTripsError } = await sb
                     .from('trips')
@@ -229,18 +211,13 @@
                 const tbody = document.getElementById('driver-list')
                 tbody.textContent = ''
                 drivers.forEach(d => {
-                    const myTrips = (trips || []).filter(t => t.tai_xe_id === d.id)
-                    const totalLuong = myTrips.reduce((sum, t) => sum + (Number(t.luong_chuyen) || 0), 0)
-                    const myAdvances = (advances || []).filter(a => a.tai_xe_id === d.id)
-                    const totalAdvance = myAdvances.reduce((sum, a) => sum + (Number(a.so_tien) || 0), 0)
-                    const thucNhan = totalLuong - totalAdvance
-
                     const myAllTrips = (allTrips || []).filter(t => t.tai_xe_id === d.id)
                     const totalTamUngTrips = myAllTrips.reduce((sum, t) => sum + (Number(t.tam_ung) || 0), 0)
                     const totalHoanUngTrips = myAllTrips.reduce((sum, t) => sum + (Number(t.hoan_ung) || 0), 0)
                     const myAllAdvances = (allAdvances || []).filter(a => a.tai_xe_id === d.id)
                     const totalTamUngThang = myAllAdvances.reduce((sum, a) => sum + (Number(a.so_tien) || 0), 0)
                     const balance = totalTamUngTrips + totalTamUngThang - totalHoanUngTrips
+
                     const row = document.createElement('tr')
 
                     const nameCell = document.createElement('td')
@@ -249,17 +226,12 @@
                     nameSpan.style.color = 'var(--primary)'
                     nameSpan.style.textDecoration = 'underline'
                     nameSpan.style.cursor = 'pointer'
-                    nameSpan.addEventListener('click', () => openTripsModal(d.id, d.full_name || '-'))
+                    nameSpan.addEventListener('click', () => openTripsModal(d.id, d.full_name || '-', d.email, d.sdt, xeMap[d.id]))
                     nameCell.appendChild(nameSpan)
                     row.appendChild(nameCell)
-                    addCell(row, d.email || '-')
+
                     addCell(row, d.sdt || '-')
-                    addCell(row, myTrips.length + ' chuyến')
-                    addCell(row, formatMoney(totalLuong)).style.color = '#e67e22'
-                    addCell(row, formatMoney(totalAdvance)).style.color = '#e74c3c'
-                    const thucNhanCell = addCell(row, formatMoney(thucNhan))
-                    thucNhanCell.style.color = thucNhan >= 0 ? '#27ae60' : '#e74c3c'
-                    thucNhanCell.style.fontWeight = 'bold'
+                    addCell(row, xeMap[d.id] ? formatBienSo(xeMap[d.id]) : '-')
 
                     const balanceCell = document.createElement('td')
                     const balanceSpan = document.createElement('span')
@@ -279,18 +251,16 @@
                     actions.style.flexWrap = 'wrap'
 
                     const advanceButton = document.createElement('button')
-                    advanceButton.className = 'btn btn-success'
-                    advanceButton.style.padding = '6px 12px'
+                    advanceButton.className = 'btn btn-success btn-sm'
                     advanceButton.textContent = '+ Tạm ứng'
                     advanceButton.addEventListener('click', () => openAdvanceModal(d.id, d.full_name || 'tài xế'))
 
-                    const deleteButton = document.createElement('button')
-                    deleteButton.className = 'btn btn-danger'
-                    deleteButton.style.padding = '6px 12px'
-                    deleteButton.textContent = 'Xóa'
-                    deleteButton.addEventListener('click', () => deleteDriver(d.id, d.full_name || 'tài xế'))
+                    const luongButton = document.createElement('button')
+                    luongButton.className = 'btn btn-sm'
+                    luongButton.textContent = '💰 Xem lương'
+                    luongButton.addEventListener('click', () => window.location.href = 'luong-thang.html')
 
-                    actions.append(advanceButton, deleteButton)
+                    actions.append(advanceButton, luongButton)
                     actionCell.appendChild(actions)
                     row.appendChild(actionCell)
                     tbody.appendChild(row)
@@ -499,12 +469,84 @@
             document.getElementById('balance-modal').style.display = 'none'
         }
 
-        async function openTripsModal(driverId, driverName) {
-            document.getElementById('trips-modal-title').textContent = 'Chuyến của ' + driverName
-            document.getElementById('trips-modal-body').textContent = 'Đang tải...'
+        async function openTripsModal(driverId, driverName, driverEmail, driverSdt, driverBienSo) {
+            document.getElementById('trips-modal-title').textContent = 'Chi tiết: ' + driverName
+            const body = document.getElementById('trips-modal-body')
+            body.textContent = ''
+
+            const infoDiv = document.createElement('div')
+            infoDiv.style.cssText = 'background:var(--bg);padding:12px 14px;border-radius:var(--radius-sm);margin-bottom:16px;font-size:14px;line-height:1.8'
+
+            const emailRow = document.createElement('div')
+            emailRow.innerHTML = '<strong>📧 Email:</strong> '
+            emailRow.appendChild(document.createTextNode(driverEmail || '-'))
+            infoDiv.appendChild(emailRow)
+
+            const sdtRow = document.createElement('div')
+            sdtRow.innerHTML = '<strong>📱 SĐT:</strong> '
+            sdtRow.appendChild(document.createTextNode(driverSdt || '-'))
+            infoDiv.appendChild(sdtRow)
+
+            const xeRow = document.createElement('div')
+            xeRow.innerHTML = '<strong>🚛 Xe đang chạy:</strong> '
+            xeRow.appendChild(document.createTextNode(driverBienSo ? formatBienSo(driverBienSo) : '(chưa được gán xe)'))
+            infoDiv.appendChild(xeRow)
+
+            body.appendChild(infoDiv)
+
+            const filterDiv = document.createElement('div')
+            filterDiv.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:12px'
+            const filterLabel = document.createElement('label')
+            filterLabel.textContent = 'Tháng:'
+            filterLabel.style.fontWeight = '600'
+            const filterInput = document.createElement('input')
+            filterInput.type = 'month'
+            filterInput.id = 'trips-modal-filter-month'
+            filterInput.style.cssText = 'padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm)'
+            const filterBtn = document.createElement('button')
+            filterBtn.className = 'btn btn-sm'
+            filterBtn.textContent = 'Lọc'
+            filterBtn.addEventListener('click', () => renderTripsList(driverId))
+            const clearBtn = document.createElement('button')
+            clearBtn.className = 'btn btn-sm btn-gray'
+            clearBtn.textContent = 'Tất cả'
+            clearBtn.addEventListener('click', () => {
+                filterInput.value = ''
+                renderTripsList(driverId)
+            })
+            filterDiv.append(filterLabel, filterInput, filterBtn, clearBtn)
+            body.appendChild(filterDiv)
+
+            const tripsContainer = document.createElement('div')
+            tripsContainer.id = 'trips-modal-list'
+            tripsContainer.textContent = 'Đang tải...'
+            body.appendChild(tripsContainer)
+
+            const deleteSection = document.createElement('div')
+            deleteSection.style.cssText = 'margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:right'
+            const deleteBtn = document.createElement('button')
+            deleteBtn.className = 'btn btn-danger btn-sm'
+            deleteBtn.textContent = '🗑️ Xóa tài xế'
+            deleteBtn.addEventListener('click', async () => {
+                const success = await deleteDriver(driverId, driverName)
+                if (success) closeTripsModal()
+            })
+            deleteSection.appendChild(deleteBtn)
+            body.appendChild(deleteSection)
+
             document.getElementById('trips-modal').style.display = 'flex'
 
-            const month = document.getElementById('filter-month').value
+            await renderTripsList(driverId)
+        }
+
+        async function renderTripsList(driverId) {
+            const container = document.getElementById('trips-modal-list')
+            if (!container) return
+            container.textContent = 'Đang tải...'
+
+            const monthInput = document.getElementById('trips-modal-filter-month')
+            const month = monthInput ? monthInput.value : ''
+
             let query = sb.from('trips')
                 .select('id, ngay_bat_dau, tuyen_duong, doanh_thu, trang_thai')
                 .eq('owner_id', ownerProfileId)
@@ -519,22 +561,13 @@
             }
 
             const { data, error } = await query
-            const body = document.getElementById('trips-modal-body')
 
-            if (error) {
-                body.textContent = 'Lỗi: ' + error.message
-                return
-            }
-            if (!data || data.length === 0) {
-                body.textContent = 'Không có chuyến nào'
-                return
-            }
+            if (error) { container.textContent = 'Lỗi: ' + error.message; return }
+            if (!data || data.length === 0) { container.textContent = 'Không có chuyến nào'; return }
 
-            const tripStatusLabels = {
-                dang_chay: '🟢 Đang chạy',
-                hoan_thanh: '✅ Hoàn thành'
-            }
+            const tripStatusLabels = { dang_chay: '🟢 Đang chạy', hoan_thanh: '✅ Hoàn thành' }
 
+            container.textContent = ''
             const table = document.createElement('table')
             const thead = document.createElement('thead')
             const headRow = document.createElement('tr')
@@ -569,17 +602,11 @@
             })
 
             table.append(thead, tbody)
-            body.textContent = ''
-            body.appendChild(table)
+            container.appendChild(table)
         }
 
         function closeTripsModal() {
             document.getElementById('trips-modal').style.display = 'none'
-        }
-
-        function clearFilter() {
-            document.getElementById('filter-month').value = ''
-            loadDrivers()
         }
 
         async function logout() {
@@ -593,32 +620,24 @@
                 return
             }
 
-            const month = document.getElementById('filter-month').value || 'Tất cả'
-            const rows = [['Họ tên', 'Email', 'SĐT', 'Số chuyến', 'Tổng lương', 'Tạm ứng', 'Thực nhận']]
+            const rows = [['Họ tên', 'SĐT', 'Xe đang chạy', 'Đang giữ']]
 
             document.querySelectorAll('#driver-list tr').forEach(tr => {
                 const cells = tr.querySelectorAll('td')
-                if (cells.length >= 7) {
+                if (cells.length >= 4) {
                     rows.push([
                         cells[0].textContent,
                         cells[1].textContent,
                         cells[2].textContent,
-                        cells[3].textContent,
-                        cells[4].textContent,
-                        cells[5].textContent,
-                        cells[6].textContent
+                        cells[3].textContent
                     ])
                 }
             })
 
             const ws = XLSX.utils.aoa_to_sheet(rows)
             const wb = XLSX.utils.book_new()
-            XLSX.utils.book_append_sheet(wb, ws, 'Lương tài xế')
-            XLSX.writeFile(wb, `luong-tai-xe-${month}.xlsx`)
-        }
-
-        function exportPDF() {
-            window.print()
+            XLSX.utils.book_append_sheet(wb, ws, 'Danh sách tài xế')
+            XLSX.writeFile(wb, `danh-sach-tai-xe.xlsx`)
         }
 
         const VAPID_PUBLIC_KEY = 'BJO2an5FL6G-ROpD5_krG8QteQJW2aiTNR-GDEhAh4mMC1rX10gDmMDjaXpUcHTsgAQpzZNVdVUdpwE2XvVr070'
@@ -697,7 +716,6 @@
             })
             document.getElementById('menu-logout').addEventListener('click', logout)
             document.getElementById('menu-excel').addEventListener('click', exportExcel)
-            document.getElementById('menu-pdf').addEventListener('click', exportPDF)
         })()
         document.addEventListener('click', e => {
             if (!e.target.closest('#notify-panel') && !e.target.closest('button[onclick="toggleNotifyPanel()"]'))
