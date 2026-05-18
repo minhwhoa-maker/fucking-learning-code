@@ -8,6 +8,8 @@
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     <script src="shared.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
     <div class="header">
@@ -19,6 +21,7 @@
                 <button class="btn" onclick="window.location.href='owner-dashboard.html'">← Trang chủ</button>
                 <button class="btn" onclick="window.location.href='driver.html'">👥 Tài xế</button>
                 <button class="btn" onclick="window.location.href='vehicles.html'">🚛 Xe</button>
+                <button class="btn btn-purple" onclick="printAllPayslips()">🖨️ In tất cả</button>
                 <button class="btn btn-logout" onclick="logout()">Đăng xuất</button>
             </div>
         </div>
@@ -27,6 +30,7 @@
         <a href="owner-dashboard.html">← Trang chủ</a>
         <a href="driver.html">👥 Tài xế</a>
         <a href="vehicles.html">🚛 Xe</a>
+        <button id="menu-print-all">🖨️ In tất cả phiếu</button>
         <div class="menu-divider"></div>
         <button class="menu-logout" id="menu-logout">🚪 Đăng xuất</button>
     </div>
@@ -93,10 +97,11 @@
                             <th>Khấu trừ</th>
                             <th>THỰC LĨNH</th>
                             <th>Sửa</th>
+                            <th>In phiếu</th>
                         </tr>
                     </thead>
                     <tbody id="luong-body">
-                        <tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:16px">Chọn tháng để xem</td></tr>
+                        <tr><td colspan="13" style="text-align:center;color:var(--text-muted);padding:16px">Chọn tháng để xem</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -166,6 +171,15 @@
         return Number(input.dataset.rawValue || input.value.replace(/\./g, '')) || 0
     }
 
+    function slugify(str) {
+        return (str || '')
+            .replace(/đ/g, 'd').replace(/Đ/g, 'd')
+            .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+    }
+
     const sb = createSb()
     let ownerProfileId = null
     let editingRowId = null
@@ -195,22 +209,13 @@
         if (error) showToast('Lỗi lưu cài đặt: ' + error.message, 'error')
     }
 
-    async function loadLuong() {
-        const thangStr = document.getElementById('filter-month').value
-        if (!thangStr) { showToast('Vui lòng chọn tháng', 'error'); return }
-
-        const tbody = document.getElementById('luong-body')
-        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:16px">Đang tải...</td></tr>'
-
+    async function fetchLuongData(thangStr) {
         const { data: drivers, error: drErr } = await sb.from('users')
-            .select('id, full_name')
+            .select('id, full_name, sdt')
             .eq('owner_id', ownerProfileId)
             .eq('role', 'driver')
-        if (drErr) { showToast('Lỗi: ' + drErr.message, 'error'); return }
-        if (!drivers || drivers.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:16px">Chưa có tài xế nào</td></tr>'
-            return
-        }
+        if (drErr) { showToast('Lỗi: ' + drErr.message, 'error'); return null }
+        if (!drivers || drivers.length === 0) return { drivers: [], xeResults: [], luongMap: {}, tripResults: [] }
 
         const xeResults = await Promise.all(
             drivers.map(d => sb.from('xe').select('id, bien_so, luong_co_ban').eq('tai_xe_id', d.id).maybeSingle())
@@ -220,7 +225,7 @@
             .select('*')
             .eq('owner_id', ownerProfileId)
             .eq('thang', thangStr)
-        if (ltErr) { showToast('Lỗi: ' + ltErr.message, 'error'); return }
+        if (ltErr) { showToast('Lỗi: ' + ltErr.message, 'error'); return null }
 
         const luongMap = {}
         if (luongRows) luongRows.forEach(r => { luongMap[r.tai_xe_id] = r })
@@ -263,21 +268,41 @@
             )
         )
 
+        return { drivers, xeResults, luongMap, tripResults }
+    }
+
+    async function loadLuong() {
+        const thangStr = document.getElementById('filter-month').value
+        if (!thangStr) { showToast('Vui lòng chọn tháng', 'error'); return }
+
+        const tbody = document.getElementById('luong-body')
+        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:var(--text-muted);padding:16px">Đang tải...</td></tr>'
+
+        const result = await fetchLuongData(thangStr)
+        if (!result) return
+
+        const { drivers, xeResults, luongMap, tripResults } = result
+
+        if (drivers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:var(--text-muted);padding:16px">Chưa có tài xế nào</td></tr>'
+            return
+        }
+
         tbody.innerHTML = ''
         drivers.forEach((d, i) => {
             const xe = xeResults[i]?.data
-            const row = luongMap[d.id]
+            const luongRow = luongMap[d.id]
             const trips = tripResults[i]?.data || []
 
             const tong_luong_chuyen = trips.reduce((s, t) => s + (Number(t.luong_chuyen) || 0), 0)
             const tong_tam_ung = trips.reduce((s, t) => s + (Number(t.tam_ung) || 0), 0)
             const tong_hoan_ung = trips.reduce((s, t) => s + (Number(t.hoan_ung) || 0), 0)
 
-            const luong_cb = row?.luong_co_ban_snapshot || 0
-            const ngay_lam = row?.ngay_lam ?? 26
-            const phu_cap = row?.phu_cap || 0
-            const thuong = row?.thuong || 0
-            const khau_tru = row?.khau_tru || 0
+            const luong_cb = luongRow?.luong_co_ban_snapshot || 0
+            const ngay_lam = luongRow?.ngay_lam ?? 26
+            const phu_cap = luongRow?.phu_cap || 0
+            const thuong = luongRow?.thuong || 0
+            const khau_tru = luongRow?.khau_tru || 0
 
             const thuc_linh = Math.round(luong_cb / 26 * ngay_lam) + tong_luong_chuyen + phu_cap + thuong - tong_tam_ung + tong_hoan_ung - khau_tru
 
@@ -310,12 +335,184 @@
             const editBtn = document.createElement('button')
             editBtn.className = 'btn btn-sm btn-warning'
             editBtn.textContent = 'Sửa'
-            editBtn.addEventListener('click', () => openEditModal(row, d.full_name))
+            editBtn.addEventListener('click', () => openEditModal(luongRow, d.full_name))
             editTd.appendChild(editBtn)
             tr.appendChild(editTd)
 
+            const printTd = document.createElement('td')
+            const printBtn = document.createElement('button')
+            printBtn.className = 'btn btn-sm btn-purple'
+            printBtn.textContent = '🖨️ Phiếu'
+            printBtn.addEventListener('click', () => printPayslip(luongRow, d, xe, trips, thangStr))
+            printTd.appendChild(printBtn)
+            tr.appendChild(printTd)
+
             tbody.appendChild(tr)
         })
+    }
+
+    function buildPayslipHTML(luongRow, driver, xe, trips, thangStr) {
+        const [year, mon] = thangStr.split('-')
+        const thangDisplay = mon + '/' + year
+
+        const tong_luong_chuyen = trips.reduce((s, t) => s + (Number(t.luong_chuyen) || 0), 0)
+        const tong_tam_ung = trips.reduce((s, t) => s + (Number(t.tam_ung) || 0), 0)
+        const tong_hoan_ung = trips.reduce((s, t) => s + (Number(t.hoan_ung) || 0), 0)
+
+        const luong_cb = luongRow?.luong_co_ban_snapshot || 0
+        const ngay_lam = luongRow?.ngay_lam ?? 26
+        const phu_cap = luongRow?.phu_cap || 0
+        const thuong = luongRow?.thuong || 0
+        const khau_tru = luongRow?.khau_tru || 0
+
+        const luong_cb_ngay = Math.round(luong_cb / 26 * ngay_lam)
+        const thuc_linh = luong_cb_ngay + tong_luong_chuyen + phu_cap + thuong - tong_tam_ung + tong_hoan_ung - khau_tru
+
+        const now = new Date(Date.now() + 7 * 60 * 60 * 1000)
+        const dd = String(now.getUTCDate()).padStart(2, '0')
+        const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
+        const yyyy = now.getUTCFullYear()
+
+        const bienSo = xe ? formatBienSo(xe.bien_so) : '—'
+        const thucLinhColor = thuc_linh >= 0 ? '#27ae60' : '#e74c3c'
+
+        const wrapper = document.createElement('div')
+        wrapper.style.cssText = 'width:595px;padding:40px;font-family:Arial,sans-serif;background:#fff;color:#1a1a1a;box-sizing:border-box;'
+
+        const headerDiv = document.createElement('div')
+        headerDiv.style.cssText = 'text-align:center;margin-bottom:24px;'
+        headerDiv.innerHTML = `<div style="font-size:20px;font-weight:bold;margin-bottom:12px;">PHIẾU LƯƠNG THÁNG ${thangDisplay}</div><hr style="border:none;border-top:2px solid #1a1a1a;margin:0;">`
+        wrapper.appendChild(headerDiv)
+
+        const infoDiv = document.createElement('div')
+        infoDiv.style.cssText = 'margin-bottom:24px;padding:12px;border:1px solid #ddd;border-radius:8px;'
+        infoDiv.innerHTML = `
+            <div style="font-size:14px;margin-bottom:6px;"><span style="font-weight:bold;">Họ tên tài xế:</span> ${driver.full_name || '—'}</div>
+            <div style="font-size:14px;margin-bottom:6px;"><span style="font-weight:bold;">Biển số xe:</span> ${bienSo}</div>
+            <div style="font-size:14px;"><span style="font-weight:bold;">Số điện thoại:</span> ${driver.sdt || '—'}</div>
+        `
+        wrapper.appendChild(infoDiv)
+
+        const tableHeader = document.createElement('div')
+        tableHeader.style.cssText = 'font-size:14px;font-weight:bold;background:#f4f6f9;padding:10px;'
+        tableHeader.textContent = 'CHI TIẾT LƯƠNG'
+        wrapper.appendChild(tableHeader)
+
+        const table = document.createElement('table')
+        table.style.cssText = 'width:100%;border-collapse:collapse;'
+
+        const detailRows = [
+            [`Lương cơ bản (${ngay_lam}/26 ngày)`, formatMoney(luong_cb_ngay), ''],
+            [`Lương chuyến (${trips.length} chuyến)`, formatMoney(tong_luong_chuyen), ''],
+            ['Phụ cấp', formatMoney(phu_cap), ''],
+            ['Thưởng', formatMoney(thuong), ''],
+            ['(−) Tạm ứng', formatMoney(tong_tam_ung), 'color:#e74c3c'],
+            ['(+) Hoàn ứng', formatMoney(tong_hoan_ung), 'color:#27ae60'],
+            ['(−) Khấu trừ', formatMoney(khau_tru), 'color:#e74c3c'],
+        ]
+        detailRows.forEach(([label, value, style]) => {
+            const tr = document.createElement('tr')
+            tr.innerHTML = `<td style="padding:8px 10px;border:1px solid #eee;font-size:14px;">${label}</td><td style="padding:8px 10px;border:1px solid #eee;font-size:14px;text-align:right;${style}">${value}</td>`
+            table.appendChild(tr)
+        })
+
+        const totalRow = document.createElement('tr')
+        totalRow.innerHTML = `<td style="padding:12px 10px;border-top:3px solid #1a1a1a;font-size:16px;font-weight:bold;">THỰC LĨNH</td><td style="padding:12px 10px;border-top:3px solid #1a1a1a;font-size:18px;font-weight:bold;text-align:right;color:${thucLinhColor}">${formatMoney(thuc_linh)}</td>`
+        table.appendChild(totalRow)
+        wrapper.appendChild(table)
+
+        if (luongRow?.ghi_chu) {
+            const note = document.createElement('div')
+            note.style.cssText = 'margin-top:16px;font-size:13px;font-style:italic;color:#555;'
+            note.textContent = 'Ghi chú: ' + luongRow.ghi_chu
+            wrapper.appendChild(note)
+        }
+
+        const dateDiv = document.createElement('div')
+        dateDiv.style.cssText = 'margin-top:60px;font-size:13px;font-style:italic;text-align:center;margin-bottom:16px;'
+        dateDiv.textContent = `Ea Kar, ngày ${dd}/${mm}/${yyyy}`
+        wrapper.appendChild(dateDiv)
+
+        const sigDiv = document.createElement('div')
+        sigDiv.style.cssText = 'display:flex;justify-content:space-between;'
+        sigDiv.innerHTML = `
+            <div style="width:45%;text-align:center;">
+                <div style="font-weight:bold;font-size:14px;">Tài xế</div>
+                <div style="font-style:italic;font-size:12px;color:#888;">(Ký ghi rõ họ tên)</div>
+                <div style="height:80px;"></div>
+            </div>
+            <div style="width:45%;text-align:center;">
+                <div style="font-weight:bold;font-size:14px;">Chủ xe</div>
+                <div style="font-style:italic;font-size:12px;color:#888;">(Ký ghi rõ họ tên)</div>
+                <div style="height:80px;"></div>
+            </div>
+        `
+        wrapper.appendChild(sigDiv)
+
+        return wrapper
+    }
+
+    async function printPayslip(luongRow, driver, xe, trips, thangStr) {
+        const div = buildPayslipHTML(luongRow, driver, xe, trips, thangStr)
+        div.style.position = 'fixed'
+        div.style.left = '-9999px'
+        div.style.top = '0'
+        document.body.appendChild(div)
+        try {
+            await new Promise(r => requestAnimationFrame(r))
+            const canvas = await html2canvas(div, { scale: 2, backgroundColor: '#ffffff' })
+            const imgData = canvas.toDataURL('image/jpeg', 0.95)
+            const pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+            const pdfW = 190
+            const pdfH = (canvas.height / canvas.width) * pdfW
+            pdf.addImage(imgData, 'JPEG', 10, 10, pdfW, pdfH)
+            pdf.save('phieu-luong-' + slugify(driver.full_name) + '-' + thangStr + '.pdf')
+            showToast('Đã tải phiếu lương', 'success')
+        } catch (e) {
+            showToast('Lỗi tạo PDF: ' + e.message, 'error')
+        } finally {
+            document.body.removeChild(div)
+        }
+    }
+
+    async function printAllPayslips() {
+        const thangStr = document.getElementById('filter-month').value
+        if (!thangStr) { showToast('Vui lòng chọn tháng', 'error'); return }
+        showToast('Đang tạo PDF...')
+        const result = await fetchLuongData(thangStr)
+        if (!result) return
+        const { drivers, xeResults, luongMap, tripResults } = result
+        if (drivers.length === 0) { showToast('Không có dữ liệu', 'error'); return }
+
+        const pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+        try {
+            for (let i = 0; i < drivers.length; i++) {
+                const d = drivers[i]
+                const xe = xeResults[i]?.data
+                const luongRow = luongMap[d.id]
+                const trips = tripResults[i]?.data || []
+
+                const div = buildPayslipHTML(luongRow, d, xe, trips, thangStr)
+                div.style.position = 'fixed'
+                div.style.left = '-9999px'
+                div.style.top = '0'
+                document.body.appendChild(div)
+
+                await new Promise(r => requestAnimationFrame(r))
+                const canvas = await html2canvas(div, { scale: 2, backgroundColor: '#ffffff' })
+                document.body.removeChild(div)
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.95)
+                const pdfW = 190
+                const pdfH = (canvas.height / canvas.width) * pdfW
+                if (i > 0) pdf.addPage()
+                pdf.addImage(imgData, 'JPEG', 10, 10, pdfW, pdfH)
+            }
+            pdf.save('tat-ca-phieu-luong-' + thangStr + '.pdf')
+            showToast('Đã tải ' + drivers.length + ' phiếu lương', 'success')
+        } catch (e) {
+            showToast('Lỗi tạo PDF: ' + e.message, 'error')
+        }
     }
 
     function openEditModal(row, driverName) {
@@ -438,6 +635,7 @@
                 menu.classList.remove('show')
         })
         document.getElementById('menu-logout').addEventListener('click', logout)
+        document.getElementById('menu-print-all').addEventListener('click', printAllPayslips)
     })()
     document.addEventListener('click', e => {
         if (!e.target.closest('#notify-panel') && !e.target.closest('button[onclick="toggleNotifyPanel()"]'))
