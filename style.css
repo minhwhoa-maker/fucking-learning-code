@@ -67,6 +67,14 @@ body {
     .container { margin: 24px auto; }
 }
 
+@media (min-width: 1200px) {
+    .container { max-width: 1400px; }
+}
+
+@media (min-width: 1600px) {
+    .container { max-width: 1600px; }
+}
+
 /* --- CARD --- */
 .card {
     background: var(--white);
@@ -196,12 +204,14 @@ table { width: 100%; border-collapse: collapse; }
     overflow-x: auto;
 }
 
-.table-scroll table {
-    min-width: 640px;
-}
+@media (max-width: 1199px) {
+    .table-scroll table {
+        min-width: 640px;
+    }
 
-.table-scroll.wide table {
-    min-width: 920px;
+    .table-scroll.wide table {
+        min-width: 920px;
+    }
 }
 
 th {
